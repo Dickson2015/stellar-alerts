@@ -1,0 +1,16 @@
+{
+  "description": "Conformance fixture for stellar-alerts-ecies-v1 (x25519 + HKDF-SHA256 + AES-256-GCM). The recipientKey is a synthetic test key generated for this vector; it protects no real payload.",
+  "curve": "x25519",
+  "recipientKey": "z1GZFIrFXeFUWUlRka28MrDWApfMPvq3JW+ZcXOxluw=",
+  "recipientPublicKey": "4A15Qd7DONJk7tVj4PtHpzzyx7zuR5FrYU+MdftNg2o=",
+  "plaintext": "{\"event\":\"payment.received\",\"timestamp\":\"2026-01-01T00:00:00.000Z\",\"data\":{\"txHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"amount\":\"42.5000000\",\"asset\":\"XLM\",\"fromAddress\":\"GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF\"}}",
+  "envelope": {
+    "v": 1,
+    "alg": "AES-256-GCM",
+    "curve": "x25519",
+    "epk": "vdGR7wkroZb5zq9AjuoYA8k6KcJJseEQVIVj0SYrnzM=",
+    "iv": "HFq4TOitn7T3yYip",
+    "ct": "69Y1KgTu/txhbkh0i5qGrvN5pOvSwqVuJ/z+ttBdEGKtAlX2zgjg1Bzh7RXWLl/t8GOm1cTfOwxj9Ws+J50nhAG1JQT/yhgCiwuVZdNCLNID1nbtwkkSIrxmxNiWzJKcHF7Yy4qoux2SU0HxiIz+saO8ZAa0HLVibrOnDhD1+9e9wv3T0wIkmrWVBP+mdvrdqUvyk0Aa+au8n4p3KC5GAyxjjGU19ekDYnt4x/PZLgjSozVxhaiblQPf6M10LdV7bhybWCB4YVeRJzErhr1EovW5oQk3d5SHVilbqtCeP6uLCRRrDGRHJfGQELYX+GryvLc2Uc8TMPvB/4i5zshUSS8shJGx",
+    "tag": "HFnQTaj4oH7MNMw3WIcn4g=="
+  }
+}

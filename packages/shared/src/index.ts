@@ -16,6 +16,7 @@ export * from './schemas/auth';
 export * from './schemas/vesting';
 export * from './schemas/defi';
 export * from './schemas/alerts';
+export * from './schemas/aml';
 
 const dateDTO = z.union([z.date(), z.string()]);
 

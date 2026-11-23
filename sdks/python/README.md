@@ -31,9 +31,28 @@ else:
     print(f"Invalid signature: {result.error}")
 ```
 
+## Decrypting end-to-end encrypted payloads (#929)
+
+Subscribers that opt into encrypted delivery receive an ECIES envelope instead
+of a plaintext JSON body. The ephemeral public key is in the
+`Stellar-Alerts-Ephemeral-Key` header; decrypt with the account key that was
+registered for the webhook:
+
+```python
+from stellar_alerts_webhook import EciesDecryptor
+
+# Stellar S... seed, x25519:<base64|hex>, or a raw 32-byte base64 key.
+decryptor = EciesDecryptor("S...")
+plaintext = decryptor.decrypt_webhook(body, headers["Stellar-Alerts-Ephemeral-Key"])
+```
+
+The decryptor also verifies that the header key matches the envelope, and
+rejects tampered ciphertext, tags and envelopes. Requires `cryptography>=42`.
+
 ## Features
 
 - HMAC-SHA256 signature verification
 - Timestamp drift protection (configurable tolerance)
 - Replay attack prevention via nonce checking
 - Grace period for key rotation (48 hours)
+- ECIES (X25519 + HKDF-SHA256 + AES-256-GCM) payload decryption

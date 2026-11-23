@@ -25,6 +25,7 @@ import { dispatchPushNotification, PushNotificationData } from '../utils/push-pr
 import { classifyWorkerError, getWorkerMaxAttempts, PermanentWorkerError } from './worker-retry-policy';
 import { QueueLaneManager, QueueLane, resolveLaneForAlert } from './queue-lanes';
 import type { FilterRuleGroup } from './rules-engine';
+import type { AmlRiskAssessment } from '@stellar-alerts/shared';
 
 const queueLog = createLogger({ module: 'Queue' });
 
@@ -47,6 +48,12 @@ export interface AlertJobData {
   filterConfig?: AlertFilterConfig;
   /** Severity classification used to route the job into a priority lane */
   severity?: string;
+  /**
+   * AML risk assessment for the payment source (#928). Present when the local
+   * flagged-address list produced a match, so downstream channels can surface
+   * the reasons alongside the alert.
+   */
+  amlRisk?: AmlRiskAssessment;
 }
 
 interface WebhookDispatchMeta {
@@ -951,6 +958,8 @@ export async function processAlertDispatch(data: AlertJobData) {
         assetIssuer: data.assetIssuer,
         fromAddress: data.fromAddress,
         receivedAt: data.receivedAt,
+        ...(data.severity ? { severity: data.severity } : {}),
+        ...(data.amlRisk ? { amlRisk: data.amlRisk } : {}),
       },
     };
 

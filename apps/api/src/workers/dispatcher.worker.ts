@@ -25,8 +25,12 @@ import {
   type PinnedWebhookTarget,
 } from "../modules/webhooks/ssrf-filter";
 import { alertStormBundler } from "../modules/notifications/storm-bundler";
+import { EciesPayloadEncryptor, type EciesCurve } from "../utils/ecies";
 
 const log = createLogger({ module: "WebhookDispatcherWorker" });
+
+/** Stateless encryptor; a fresh ephemeral key is generated per delivery. */
+const payloadEncryptor = new EciesPayloadEncryptor();
 
 export interface WebhookDispatchJobData {
   webhookId: string;
@@ -47,6 +51,14 @@ export interface WebhookDispatchJobData {
   ruleId?: string;
   /** Alert metadata for bundling (amount, fromAddress, etc.) */
   alertData?: Record<string, any>;
+  /**
+   * Recipient public key for end-to-end payload encryption (#929). When set,
+   * the JSON body is replaced by an ECIES envelope and the ephemeral key is
+   * published in the `Stellar-Alerts-Ephemeral-Key` header.
+   */
+  encryptionPublicKey?: string;
+  /** Recipient key curve; inferred from the key when omitted. */
+  encryptionCurve?: EciesCurve;
 }
 
 export interface WebhookDispatchResult {
@@ -57,6 +69,8 @@ export interface WebhookDispatchResult {
   reason?: string;
   pinnedIp?: string;
   lane?: QueueLane;
+  /** True when the request body was ECIES-encrypted for the subscriber. */
+  encrypted?: boolean;
 }
 
 export type WebhookTransportFn = (
@@ -279,8 +293,37 @@ export class DispatcherWorker {
       };
     }
 
+    let payloadStr = JSON.stringify(payload);
+    let dispatchHeaders = headers;
+    let encrypted = false;
+
+    if (job.data.encryptionPublicKey) {
+      try {
+        const sealed = payloadEncryptor.encryptJson(
+          payload,
+          job.data.encryptionPublicKey,
+          job.data.encryptionCurve ? { curve: job.data.encryptionCurve } : {},
+        );
+        payloadStr = sealed.body;
+        // Encryption headers win over subscriber-supplied ones so a stored
+        // header cannot redirect the receiver to the wrong key.
+        dispatchHeaders = { ...headers, ...sealed.headers };
+        encrypted = true;
+      } catch (err: any) {
+        log.error(
+          { webhookId, url, reason: err?.message, lane },
+          'Blocked webhook dispatch: ECIES payload encryption failed',
+        );
+        return {
+          webhookId,
+          status: 'failed',
+          reason: 'ecies_encryption_failed',
+          lane,
+        };
+      }
+    }
+
     try {
-      const payloadStr = JSON.stringify(payload);
       const { result: res, durationMs } =
         await webhookTelemetry.measureDispatch(
           webhookId,
@@ -290,7 +333,7 @@ export class DispatcherWorker {
               const response = await this.transport(
                 url,
                 payloadStr,
-                headers,
+                dispatchHeaders,
                 pinnedTarget,
               );
               if (response.status >= 500) {
@@ -313,6 +356,7 @@ export class DispatcherWorker {
         durationMs,
         pinnedIp: pinnedTarget.pinnedIp,
         lane,
+        ...(encrypted ? { encrypted: true } : {}),
       };
     } catch (err: any) {
       if (err instanceof CircuitBreakerOpenError) {

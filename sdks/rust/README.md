@@ -81,9 +81,24 @@ that a webhook's payload shape can be customized via a Handlebars template
 on the Stellar Alerts dashboard; `StellarAlertEvent` models the *default*
 (non-templated) payload shape delivered when no custom template is set.
 
+## Decrypting end-to-end encrypted payloads (#929)
+
+```rust
+use stellar_alerts_webhook::EciesDecryptor;
+
+let decryptor = EciesDecryptor::new(&std::env::var("WEBHOOK_PRIVATE_KEY")?)?;
+let plaintext = decryptor.decrypt_webhook(&body, Some(&ephemeral_key_header))?;
+```
+
+The body is a JSON ECIES envelope (`v`, `alg`, `curve`, `epk`, `iv`, `ct`,
+`tag`); the ephemeral key is mirrored in `Stellar-Alerts-Ephemeral-Key` and
+verified against the envelope. Private keys may be a Stellar `S...` seed,
+`x25519:`/`ed25519:` prefixed keys, or a raw 32-byte hex/base64 key.
+
 ## Features
 
 - HMAC-SHA256 or Ed25519 signature verification, both constant-time
 - Timestamp drift protection (configurable tolerance)
 - Replay attack prevention via in-memory nonce tracking
 - Strongly-typed `PaymentAlert` / `SorobanEvent` payload models
+- ECIES (X25519 + HKDF-SHA256 + AES-256-GCM) payload decryption
