@@ -345,6 +345,11 @@ model Webhook {
   // period at rotation time; cleared once expired or on the next rotation.
   previousSecretExpiresAt  DateTime?
   payloadTemplate   String?
+  // mTLS client certificate configuration for enterprise webhook subscribers
+  mtlscClientCertCiphertext String?   // AES-256-GCM encrypted client certificate PEM
+  mtlscClientKeyCiphertext   String?   // AES-256-GCM encrypted client private key PEM
+  mtlscCaBundleCiphertext    String?   // Optional CA bundle PEM for custom trust store
+  mtlscKeyVersion            Int        @default(1) // Version rotation support
   isActive          Boolean                  @default(true)
   createdAt         DateTime                 @default(now())
   logs              WebhookLog[]
