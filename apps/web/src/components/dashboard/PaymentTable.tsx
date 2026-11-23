@@ -1,15 +1,23 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { PaymentDTO, filterPayments, extractAvailableAssets } from '@stellar-alerts/shared';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { EmptyState } from '@/components/common/EmptyState';
 import { formatAssetAmount } from './currency';
 import { useCurrencyPreference } from './CurrencyPreference';
 
 interface PaymentTableProps {
   payments: PaymentDTO[];
   isLoading: boolean;
+  hasExternalFilters?: boolean;
+  onClearFilters?: () => void;
 }
 
-export const PaymentTable: React.FC<PaymentTableProps> = ({ payments = [], isLoading }) => {
+export const PaymentTable: React.FC<PaymentTableProps> = ({
+  payments = [],
+  isLoading,
+  hasExternalFilters = false,
+  onClearFilters,
+}) => {
   const { currency, rates } = useCurrencyPreference();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAsset, setSelectedAsset] = useState('ALL');
@@ -47,6 +55,11 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ payments = [], isLoa
   };
 
   const isFiltered = searchQuery.trim() !== '' || selectedAsset !== 'ALL';
+
+  const handleClearAllFilters = () => {
+    handleResetFilters();
+    onClearFilters?.();
+  };
 
   const exportToCSV = () => {
     const listToExport = filteredPayments.length > 0 || isFiltered ? filteredPayments : payments;
@@ -240,23 +253,21 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ payments = [], isLoa
         <div className="p-12 text-center text-slate-400 text-sm" role="status" aria-live="polite">
           <div className="animate-pulse" aria-hidden="true">Loading transaction records...</div>
         </div>
-      ) : payments.length === 0 ? (
-        <div className="p-12 text-center text-slate-400 text-sm rounded-xl bg-slate-950/40 border border-slate-800/80">
-          No payments recorded yet. Trigger a payment on Stellar Testnet to see live ingestion!
-        </div>
+      ) : payments.length === 0 && !hasExternalFilters ? (
+        <EmptyState
+          variant="no-data"
+          title="No payments recorded yet"
+          description="Trigger a payment on Stellar Testnet to see live ingestion."
+          testId="payments-empty-state"
+        />
       ) : filteredPayments.length === 0 ? (
-        <div className="p-10 text-center rounded-xl bg-slate-950/40 border border-slate-800/80 space-y-3" role="status">
-          <p className="text-slate-300 text-sm font-medium">No payments match your search filter criteria.</p>
-          <p className="text-slate-500 text-xs">Try clearing your search query or selecting a different asset filter.</p>
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            aria-label="Reset search filters to show all payments"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 text-xs font-semibold transition-colors mt-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/70"
-          >
-            <span>Reset Search Filters</span>
-          </button>
-        </div>
+        <EmptyState
+          variant="no-results"
+          title="No payments match your filters"
+          description="Try a different search, asset or wallet tag, or clear every filter to see all payments."
+          action={{ label: 'Clear all filters', onClick: handleClearAllFilters }}
+          testId="payments-no-results"
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm border-collapse">

@@ -260,3 +260,49 @@ describe('PaymentTable CSV/JSON export (issue #582)', () => {
     expect(anchorClicks).toHaveLength(0);
   });
 });
+
+describe('PaymentTable empty states', () => {
+  it('shows the no-data empty state when there are no payments and no filters', () => {
+    render(<PaymentTable payments={[]} isLoading={false} />);
+
+    expect(screen.getByTestId('payments-empty-state')).toHaveTextContent('No payments recorded yet');
+    expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument();
+  });
+
+  it('clears search and asset filters from the zero-result CTA', () => {
+    const onClearFilters = vi.fn();
+    render(
+      <PaymentTable
+        payments={[makePayment({ asset: 'XLM' })]}
+        isLoading={false}
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('search-input'), { target: { value: 'NO_MATCH' } });
+    expect(screen.getByTestId('payments-no-results')).toHaveTextContent('No payments match your filters');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('search-input')).toHaveValue('');
+    expect(screen.queryByTestId('payments-no-results')).not.toBeInTheDocument();
+  });
+
+  it('offers Clear all filters when external tag filters leave no payments', () => {
+    const onClearFilters = vi.fn();
+    render(
+      <PaymentTable
+        payments={[]}
+        isLoading={false}
+        hasExternalFilters
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    expect(screen.queryByTestId('payments-empty-state')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+});

@@ -1,6 +1,7 @@
 import React from 'react';
 import { WalletDTO } from '@stellar-alerts/shared';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { EmptyState } from '@/components/common/EmptyState';
 import { WalletTagSelector } from '@/components/wallets/WalletTagSelector';
 import { collectTags } from '@/lib/wallet-tags';
 
@@ -70,15 +71,13 @@ export const WalletList: React.FC<WalletListProps> = ({
       </div>
 
       {wallets.length === 0 ? (
-        <div className="p-8 text-center rounded-xl bg-slate-950/40 border border-slate-800/80">
-          <p className="text-slate-400 text-sm">No Stellar public wallets registered yet.</p>
-          <button
-            onClick={onOpenAddModal}
-            className="mt-3 text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
-          >
-            + Register your first Stellar public key
-          </button>
-        </div>
+        <EmptyState
+          variant="no-wallets"
+          title="No wallets registered yet"
+          description="Register a Stellar public key to start streaming its incoming payments and alerts."
+          action={{ label: 'Add your first wallet', onClick: onOpenAddModal }}
+          testId="wallets-empty-state"
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
