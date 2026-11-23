@@ -1,8 +1,6 @@
 import React from 'react';
 import { WalletDTO } from '@stellar-alerts/shared';
-import { CopyButton } from '@/components/ui/CopyButton';
-import { WalletTagSelector } from '@/components/wallets/WalletTagSelector';
-import { collectTags } from '@/lib/wallet-tags';
+import { AddressTruncate } from '@/components/common/AddressTruncate';
 
 interface WalletListProps {
   wallets: WalletDTO[];
@@ -10,10 +8,6 @@ interface WalletListProps {
   onSelectWallet: (id: string | null) => void;
   onRemoveWallet: (id: string) => void;
   onOpenAddModal: () => void;
-  onUpdateWalletMetadata?: (
-    id: string,
-    metadata: { nickname?: string; colorHex?: string; tags?: string[] },
-  ) => Promise<void> | void;
   isStreamConnected?: boolean;
 }
 
@@ -23,11 +17,8 @@ export const WalletList: React.FC<WalletListProps> = ({
   onSelectWallet,
   onRemoveWallet,
   onOpenAddModal,
-  onUpdateWalletMetadata,
   isStreamConnected = true,
 }) => {
-  const availableTags = collectTags(wallets);
-
   return (
     <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-xl shadow-xl mb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -109,23 +100,9 @@ export const WalletList: React.FC<WalletListProps> = ({
                   <div className="font-semibold text-sm text-white truncate">
                     {wallet.label || 'Unnamed Wallet'}
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-slate-400 font-mono mt-1">
-                    <span className="truncate">
-                      {wallet.publicKey.substring(0, 8)}...{wallet.publicKey.substring(48)}
-                    </span>
-                    <CopyButton
-                      text={wallet.publicKey}
-                      label="Copy public key"
-                    />
+                  <div className="text-xs text-slate-400 font-mono mt-1 truncate">
+                    <AddressTruncate value={wallet.publicKey} prefixChars={8} suffixChars={8} />
                   </div>
-                  {onUpdateWalletMetadata ? (
-                    <WalletTagSelector
-                      wallet={wallet}
-                      availableTags={availableTags}
-                      onSave={onUpdateWalletMetadata}
-                      className="mt-2"
-                    />
-                  ) : null}
                 </div>
                 <button
                   onClick={(e) => {

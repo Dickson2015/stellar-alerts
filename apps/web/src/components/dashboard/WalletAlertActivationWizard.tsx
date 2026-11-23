@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { isValidStellarPublicKey } from '@stellar-alerts/shared';
+import { AddressTruncate } from '@/components/common/AddressTruncate';
 
 export interface WalletAlertActivationProps {
   apiBaseUrl?: string;
@@ -445,7 +446,10 @@ export function WalletAlertActivationWizard({
           <div className="space-y-1">
             <h3 className="text-xl font-bold text-white">Alert Ingestion Active</h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto">
-              Real-time Horizon ledger polling is active for <code className="font-mono text-cyan-300">{publicKey.slice(0, 8)}…{publicKey.slice(-4)}</code>.
+              Real-time Horizon ledger polling is active for{' '}
+              <code className="font-mono text-cyan-300">
+                <AddressTruncate value={publicKey} prefixChars={8} suffixChars={4} />
+              </code>.{' '}
               Payments exceeding {minAmount} XLM will be delivered instantly to Telegram chat {telegramChatId}.
             </p>
           </div>
