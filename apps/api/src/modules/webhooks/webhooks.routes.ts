@@ -44,6 +44,13 @@ export async function webhooksRoutes(app: FastifyInstance) {
     { preHandler: [adminScope] },
     webhookSandboxReplayController.replay.bind(webhookSandboxReplayController)
   );
+  // Ten outbound probes must execute on every call, so this route deliberately
+  // has no idempotency hooks. The suite enforces its own per-user rate limit.
+  app.post(
+    '/webhooks/certification/run',
+    { preHandler: [adminScope] },
+    webhooksController.runCertification.bind(webhooksController)
+  );
   app.post(
     '/webhooks/:id/rotate-secret',
     { preValidation: idempotent.preValidation, preHandler: [adminScope], onSend: idempotent.onSend, onResponse: idempotent.onResponse },

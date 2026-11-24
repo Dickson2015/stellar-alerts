@@ -1,4 +1,4 @@
-import { WalletDTO, PaymentDTO, isValidStellarPublicKey } from './types.js';
+import { WalletDTO, PaymentDTO, SorobanEventDTO, isValidStellarPublicKey } from './types.js';
 import { getCliConfig } from './config.js';
 import { StreamHttpError } from './resilient-stream.js';
 
@@ -96,14 +96,26 @@ export class ApiClient {
   /**
    * Opens one connection to the NDJSON payment stream. `cursor` asks the server
    * to resume after that payment; servers that ignore it still work because the
-   * CLI suppresses replayed ids client-side.
+   * CLI suppresses replayed ids client-side. The optional filter parameters let
+   * capable servers narrow the stream; the CLI always re-checks every record
+   * client-side as well.
    */
   async openPaymentStream(
-    options: { cursor?: string; walletId?: string; signal?: AbortSignal } = {}
+    options: {
+      cursor?: string;
+      walletId?: string;
+      asset?: string;
+      minAmount?: number;
+      contract?: string;
+      signal?: AbortSignal;
+    } = {}
   ): Promise<AsyncIterable<PaymentDTO>> {
     const params = new URLSearchParams();
     if (options.walletId) params.append('walletId', options.walletId);
     if (options.cursor) params.append('cursor', options.cursor);
+    if (options.asset) params.append('asset', options.asset);
+    if (options.minAmount !== undefined) params.append('minAmount', String(options.minAmount));
+    if (options.contract) params.append('contract', options.contract);
     const query = params.toString();
 
     const response = await fetch(`${this.baseUrl}/payments/stream${query ? `?${query}` : ''}`, {
@@ -123,7 +135,44 @@ export class ApiClient {
       throw new Error('Response body is not readable');
     }
 
-    return readPaymentLines(reader);
+    return readNdjsonLines(reader, isPaymentDTO);
+  }
+
+  /**
+   * Opens the Soroban counterpart of the payment stream. Servers that do not
+   * implement this endpoint cause a `StreamHttpError`, which `tail` reports as
+   * a warning while it continues to show payments.
+   */
+  async openSorobanEventStream(
+    options: {
+      contract?: string;
+      asset?: string;
+      signal?: AbortSignal;
+    } = {}
+  ): Promise<AsyncIterable<SorobanEventDTO>> {
+    const params = new URLSearchParams();
+    if (options.contract) params.append('contract', options.contract);
+    if (options.asset) params.append('asset', options.asset);
+    const query = params.toString();
+
+    const response = await fetch(`${this.baseUrl}/soroban/events/stream${query ? `?${query}` : ''}`, {
+      headers: this.getHeaders(),
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      throw new StreamHttpError(
+        `Failed to connect to Soroban event stream: ${response.statusText || response.status}`,
+        response.status
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    return readNdjsonLines(reader, isSorobanEventDTO);
   }
 
   async streamPayments(
@@ -136,26 +185,28 @@ export class ApiClient {
   }
 }
 
-function parsePaymentLine(line: string): PaymentDTO | null {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
-  try {
-    const parsed = JSON.parse(trimmed);
-    // Heartbeats and other non-payment frames carry no id.
-    return parsed && typeof parsed.id === 'string' ? (parsed as PaymentDTO) : null;
-  } catch {
-    return null;
-  }
+function hasStringId(value: unknown): value is { id: string } {
+  return typeof value === 'object' && value !== null && typeof (value as { id?: unknown }).id === 'string';
+}
+
+function isPaymentDTO(value: unknown): value is PaymentDTO {
+  return hasStringId(value);
+}
+
+function isSorobanEventDTO(value: unknown): value is SorobanEventDTO {
+  return hasStringId(value);
 }
 
 /**
- * Yields one payment per newline-delimited JSON record, buffering partial lines
+ * Yields one record per newline-delimited JSON frame, buffering partial lines
  * across chunk boundaries. The reader is always cancelled on exit so the
- * underlying socket is released on abort, break, or error.
+ * underlying socket is released on abort, break, or error. Frames without a
+ * string `id` (heartbeats, keepalives) are ignored.
  */
-export async function* readPaymentLines(
-  reader: ReadableStreamDefaultReader<Uint8Array>
-): AsyncGenerator<PaymentDTO> {
+export async function* readNdjsonLines<T>(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  isValid: (value: unknown) => value is T
+): AsyncGenerator<T> {
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -170,17 +221,36 @@ export async function* readPaymentLines(
 
       let newline: number;
       while ((newline = buffer.indexOf('\n')) !== -1) {
-        const payment = parsePaymentLine(buffer.slice(0, newline));
+        const line = buffer.slice(0, newline);
         buffer = buffer.slice(newline + 1);
-        if (payment) yield payment;
+        const record = parseNdjsonLine(line, isValid);
+        if (record) yield record;
       }
     }
 
-    const tail = parsePaymentLine(buffer);
+    const tail = parseNdjsonLine(buffer, isValid);
     if (tail) yield tail;
   } finally {
     await reader.cancel().catch(() => {});
   }
+}
+
+function parseNdjsonLine<T>(line: string, isValid: (value: unknown) => value is T): T | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    return isValid(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @deprecated Use `readNdjsonLines` with `isPaymentDTO` where available. */
+export async function* readPaymentLines(
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): AsyncGenerator<PaymentDTO> {
+  yield* readNdjsonLines(reader, isPaymentDTO);
 }
 
 export const apiClient = new ApiClient();

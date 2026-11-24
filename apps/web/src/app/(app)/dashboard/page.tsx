@@ -21,6 +21,7 @@ import {
   SankeyFlowDiagram,
 } from '@/components/dashboard';
 import { FilterChips } from '@/components/alerts/FilterChips';
+import { IncidentCorrelationTimeline } from '@/components/alerts/IncidentCorrelationTimeline';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useLiveDashboardStream } from '@/hooks/useLiveDashboardStream';
 import { useEmailTemplatePreference } from '@/hooks/useEmailTemplatePreference';
@@ -178,6 +179,11 @@ export default function DashboardPage() {
                 </div>
               </div>
             ),
+          },
+          {
+            id: 'incident-correlation-timeline',
+            label: 'Incident Correlation Timeline',
+            content: <IncidentCorrelationTimeline alerts={visiblePayments} />,
           },
           {
             id: 'network-visualizer',

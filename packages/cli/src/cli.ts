@@ -7,6 +7,7 @@ import { createElement } from 'react';
 import { registerWalletCommands } from './commands/wallet.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerStreamCommands } from './commands/stream.js';
+import { registerTailCommand } from './commands/tail.js';
 import { registerProfileCommands } from './commands/profile.js';
 import { registerCompletionCommands } from './commands/completion.js';
 import { registerMultisigCommands } from './commands/multisig.js';
@@ -31,6 +32,7 @@ program
 registerWalletCommands(program);
 registerInitCommand(program);
 registerStreamCommands(program);
+registerTailCommand(program);
 registerProfileCommands(program);
 registerCompletionCommands(program);
 registerMultisigCommands(program);

@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { renderWebhookDispatchMetrics } from "../lib/webhook-metrics";
+import { renderSpilloverMetrics } from "../lib/queue/disk-spillover";
 import { prometheusMetricsService } from "../modules/metrics/prometheus.service";
 import { env } from "../config/env";
 
@@ -63,6 +64,8 @@ export function generatePrometheusMetrics(
     "",
     // Webhook dispatch phase/outcome metrics
     renderWebhookDispatchMetrics(),
+    "",
+    renderSpilloverMetrics(),
     "",
     // SLO and delivery metrics from PrometheusMetricsService
     prometheusMetricsService.render(),

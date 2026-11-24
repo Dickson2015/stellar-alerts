@@ -104,6 +104,12 @@ const envSchema = z.object({
   // Opt-in Prometheus scrape port for worker processes. Unset by default, in
   // which case no listener is opened.
   WORKER_METRICS_PORT: z.coerce.number().int().positive().optional(),
+  // Local journal for alert jobs during a Redis outage (lib/queue/disk-spillover.ts).
+  // Must be on a persistent volume in production: an ephemeral disk loses any
+  // jobs still buffered if the pod is replaced before Redis recovers.
+  ALERT_SPILLOVER_DIR: z.string().min(1).optional().default(".data/alert-spillover"),
+  // How long a BullMQ add may wait before the job is journaled instead.
+  ALERT_SPILLOVER_ENQUEUE_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(1500),
   // Zero-downtime watcher handover (modules/watcher/cursor-coordinator.ts). Off by
   // default: with it on, a node only ingests while it holds the Redis primary
   // lease, so it must not be enabled without a reachable Redis.

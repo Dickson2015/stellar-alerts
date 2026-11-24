@@ -136,6 +136,9 @@ jobs:
       - name: Run Ops Script Unit Tests
         run: npm run test:scripts
 
+      - name: Enforce zero-downtime migration compatibility
+        run: npm run check:migrations:zero-downtime
+
       - name: Enforce dependency license policy
         run: npm run release:report:check
 

@@ -2,7 +2,7 @@ import { isValidEd25519PublicKey } from '@stellar-alerts/shared';
 import { env } from '../config/env';
 import { prisma, connectWithRetry } from '../lib/prisma';
 import { stellar, decodeHorizonAsset, parseSacTransferEvent, formatTokenAmount } from '../lib/stellar';
-import { enqueuePaymentAlert } from '../lib/queue';
+import { enqueuePaymentAlert, startAlertSpillover } from '../lib/queue';
 import { publishPaymentEvent } from '../lib/realtime';
 import {
   getSorobanLatestLedger,
@@ -28,12 +28,18 @@ import { startWorkerMetricsServer, stopWorkerMetricsServer } from '../lib/worker
 import { trace, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
 import { FullJitterBackoff } from './watcher/stream-reconnect';
 import { runTrustlineSentinelPass } from '../modules/stellar/trustline-sentinel.service';
+import { runManageDataSentinelPass } from '../modules/stellar/manage-data-sentinel';
+import { sequencePreconditionWatcher } from '../modules/stellar/sequence-watcher.service';
 import { anchorLifecycleWatcher } from '../modules/stellar/anchor-watcher.service';
 import { stateSnapshotManager } from '../modules/watcher/snapshot.service';
 import { deduplicationPipeline } from '../lib/deduplicator';
 import { allowanceSentinelService } from '../modules/soroban/allowance-sentinel.service';
 import { flashLoanDetector } from '../modules/soroban/flash-loan-detector';
 import { contractGovernanceSentinel } from '../modules/soroban/governance-sentinel.service';
+import { mevArbitrageDetector, type LedgerSwap } from '../modules/soroban/mev-detector';
+import { feeBumpSentinel, type HorizonFeeBumpRecord } from '../modules/stellar/feebump-sentinel';
+import { resourceSaturationProfiler, type ProfileInput } from '../modules/soroban/resource-profiler';
+import { classicAmmWatcher, type HorizonLiquidityPoolOperation } from '../modules/stellar/classic-amm.service';
 import { SignerWatcher, RedisSignerSnapshotStore } from '../modules/stellar/signer-watcher.service';
 import { MonitoredAddressRegistry } from '../lib/radix-index';
 import { scanLedgerOperations, operationMask } from '../lib/xdr-wasm';
@@ -1044,6 +1050,28 @@ async function runTrustlineSentinel(publicKeys: string[]): Promise<void> {
   } catch (err: unknown) {
     log.warn(`[WatcherWorker] Trustline sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+  try {
+    await runManageDataSentinelPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Manage-data sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  try {
+    await sequencePreconditionWatcher.runPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Sequence watcher pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Asset issuer flag / home-domain / supply sentinel. Like the trustline pass,
+ * failures are logged and swallowed so the payment poll keeps running.
+ */
+async function runAssetIssuerSentinel(publicKeys: string[]): Promise<void> {
+  try {
+    await runAssetIssuerSentinelPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Asset issuer sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function pollOnce() {
@@ -1064,6 +1092,7 @@ export async function pollOnce() {
         }
       }
       await runTrustlineSentinel(wallets.map((wallet) => wallet.publicKey));
+      await runAssetIssuerSentinel(wallets.map((wallet) => wallet.publicKey));
       const contractIds = getActiveContractIds();
       if (contractIds.length > 0) {
         await processSorobanContractsConcurrently(contractIds);
@@ -1113,6 +1142,12 @@ export async function runWatcher() {
   });
 
   await loadContractRegistry();
+
+  // Replays alert jobs journaled to disk before a restart. A journal problem
+  // must not stop ingestion, since enqueueing has its own fallback.
+  await startAlertSpillover().catch((err: unknown) => {
+    log.error(`[WatcherWorker] Could not open alert spillover journal: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   // Default alert channel; real delivery channels register themselves the same way.
   contractRouter.registerChannel('log', (alert) => {
@@ -1186,6 +1221,7 @@ export async function runWatcher() {
           }
 
           await runTrustlineSentinel(wallets.map((wallet) => wallet.publicKey));
+          await runAssetIssuerSentinel(wallets.map((wallet) => wallet.publicKey));
 
           const contractIds = getActiveContractIds();
           if (contractIds.length > 0) {
@@ -1486,6 +1522,50 @@ export async function inspectTransactionForFlashLoans(input: {
  */
 export async function inspectContractGovernance(event: any) {
   return contractGovernanceSentinel.parseGovernanceEvent(event);
+}
+
+/**
+ * Intra-ledger MEV detector: scans every swap of one closed ledger for cyclic
+ * arbitrage and sandwich extraction and alerts affected pool subscribers (#970).
+ */
+export async function inspectLedgerForMev(swaps: readonly LedgerSwap[]) {
+  return mevArbitrageDetector.analyzeAndNotify(swaps);
+}
+
+/**
+ * Fee-bump sponsor sentinel: unwraps CAP-0015 envelopes, tracks rolling hourly
+ * fee burn per sponsor and alerts on fee surges or failed inner transactions (#978).
+ */
+export function inspectFeeBumpTransaction(record: HorizonFeeBumpRecord, networkPassphrase: string) {
+  return feeBumpSentinel.inspectHorizonTransaction(record, networkPassphrase);
+}
+
+/**
+ * Classic protocol-18 liquidity pool watcher: decodes deposit/withdraw operations,
+ * values LP shares, derives price bounds and slippage, and alerts subscribers
+ * watching the acting wallet or the pool ID (#982). Non-pool operations are ignored.
+ */
+export async function inspectClassicAmmOperations(ops: readonly HorizonLiquidityPoolOperation[]) {
+  try {
+    return await classicAmmWatcher.inspectOperations(ops);
+  } catch (err) {
+    log.warn({ err: err instanceof Error ? err.message : String(err) }, 'Classic AMM inspection failed');
+    return [];
+  }
+}
+
+/**
+ * Soroban resource saturation profiler: decodes a transaction's TransactionMetaV3
+ * and warns the contract owner when CPU, memory or ledger read/write usage crosses
+ * 80% of the network maximum, before invocations start hitting ResourceLimitExceeded (#972).
+ */
+export async function inspectSorobanResourceUsage(input: ProfileInput) {
+  try {
+    return await resourceSaturationProfiler.profile(input);
+  } catch (err) {
+    log.warn({ txHash: input.txHash, err: err instanceof Error ? err.message : String(err) }, 'Resource profiling failed');
+    return null;
+  }
 }
 
 /**

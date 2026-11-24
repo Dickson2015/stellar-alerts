@@ -10,6 +10,8 @@ export const ENV_EXAMPLES = Object.freeze([
     // Keep this list aligned with apps/api/src/config/env.ts and direct
     // process.env reads under apps/api/src.
     allowedKeys: Object.freeze([
+      'ALERT_SPILLOVER_DIR',
+      'ALERT_SPILLOVER_ENQUEUE_TIMEOUT_MS',
       'ALERT_WORKER_CONCURRENCY',
       'ANCHOR_SEP31_AUTH_TOKEN',
       'DATABASE_URL',

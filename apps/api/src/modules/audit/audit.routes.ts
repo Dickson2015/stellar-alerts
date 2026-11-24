@@ -55,6 +55,15 @@ export async function auditRoutes(app: FastifyInstance) {
     },
   );
 
+  /**
+   * On-chain anchored proof for issue #1041. Distinct from the daily Merkle
+   * proof above: this returns the hourly root and Stellar anchor transaction.
+   */
+  app.get<{ Params: { id: string } }>(
+    '/audit/:id/proof',
+    auditController.getProof.bind(auditController),
+  );
+
   app.post<{ Body: { alertId: string; proof: MerkleProof; expectedRoot: string } }>(
     '/audit/verify',
     async (request, reply) => {

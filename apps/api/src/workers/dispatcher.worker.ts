@@ -25,6 +25,10 @@ import {
   type PinnedWebhookTarget,
 } from "../modules/webhooks/ssrf-filter";
 import { alertStormBundler } from "../modules/notifications/storm-bundler";
+import {
+  applyMaskingPolicy,
+  type MaskingPolicy,
+} from "../modules/webhooks/payload-masker";
 
 const log = createLogger({ module: "WebhookDispatcherWorker" });
 
@@ -47,6 +51,8 @@ export interface WebhookDispatchJobData {
   ruleId?: string;
   /** Alert metadata for bundling (amount, fromAddress, etc.) */
   alertData?: Record<string, any>;
+  /** Per-webhook field masking policy applied before signing (#990). */
+  maskingPolicy?: MaskingPolicy | null;
 }
 
 export interface WebhookDispatchResult {
@@ -66,7 +72,19 @@ export type WebhookTransportFn = (
   pinnedTarget?: PinnedWebhookTarget,
 ) => Promise<{ status: number; body?: string }>;
 
+/**
+ * Produces signature headers for the exact body that will be sent. Called
+ * AFTER masking so the signature covers the masked bytes.
+ */
+export type WebhookSignerFn = (
+  webhookId: string,
+  body: string,
+) => Promise<Record<string, string>>;
+
+const SIGNATURE_HEADER_NAMES = ["x-stellar-signature", "x-signature-secondary"];
+
 export class DispatcherWorker {
+  private signer?: WebhookSignerFn;
   private circuitBreaker: RedisCircuitBreaker;
   private workers: Map<QueueLane, Worker<WebhookDispatchJobData>> = new Map();
   private transport: WebhookTransportFn;
@@ -78,7 +96,9 @@ export class DispatcherWorker {
     transport?: WebhookTransportFn,
     filter?: SsrfFilter,
     laneManager?: QueueLaneManager,
+    signer?: WebhookSignerFn,
   ) {
+    this.signer = signer;
     this.circuitBreaker = circuitBreaker || new RedisCircuitBreaker();
     this.transport = transport || this.defaultTransport.bind(this);
     this.ssrfFilter = filter || ssrfFilter;
@@ -180,6 +200,7 @@ export class DispatcherWorker {
       ruleId,
       alertData,
       severity,
+      maskingPolicy,
     } = job.data;
     const lane: QueueLane = job.data.lane ?? resolveLaneForAlert(job.data);
 
@@ -279,8 +300,43 @@ export class DispatcherWorker {
       };
     }
 
+    let payloadStr: string;
+    let sendHeaders = headers;
     try {
-      const payloadStr = JSON.stringify(payload);
+      // Mask first, sign second: the signature must cover the masked bytes.
+      const masked = applyMaskingPolicy(payload, maskingPolicy);
+      payloadStr = JSON.stringify(masked.payload);
+      if (masked.maskedCount > 0) {
+        log.debug(
+          { webhookId, maskedCount: masked.maskedCount, paths: masked.appliedPaths },
+          "Applied webhook field masking policy",
+        );
+        const hasStaleSignature = Object.keys(headers).some((h) =>
+          SIGNATURE_HEADER_NAMES.includes(h.toLowerCase()),
+        );
+        if (this.signer) {
+          const fresh = await this.signer(webhookId, payloadStr);
+          sendHeaders = {
+            ...Object.fromEntries(
+              Object.entries(headers).filter(
+                ([h]) => !SIGNATURE_HEADER_NAMES.includes(h.toLowerCase()),
+              ),
+            ),
+            ...fresh,
+          };
+        } else if (hasStaleSignature) {
+          // Fail closed: never deliver a signature that no longer matches.
+          throw new Error(
+            "Masking policy changed the payload but no signer is configured to re-sign it",
+          );
+        }
+      }
+    } catch (err: any) {
+      log.error({ webhookId, lane, err: err.message }, "Webhook masking/signing failed");
+      return { webhookId, status: "failed", reason: err.message, lane };
+    }
+
+    try {
       const { result: res, durationMs } =
         await webhookTelemetry.measureDispatch(
           webhookId,
@@ -290,7 +346,7 @@ export class DispatcherWorker {
               const response = await this.transport(
                 url,
                 payloadStr,
-                headers,
+                sendHeaders,
                 pinnedTarget,
               );
               if (response.status >= 500) {
