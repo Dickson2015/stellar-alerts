@@ -14,6 +14,7 @@ import { registerMultisigCommands } from './commands/multisig.js';
 import { registerVerifyProofCommand } from './commands/verify-proof.js';
 import { registerTopCommand } from './commands/top.js';
 import { registerValidateCommand } from './commands/validate.js';
+import { registerHistoryCommand } from './commands/history.js';
 import StreamTui from './tui/stream-tui.js';
 
 const program = new Command();
@@ -39,6 +40,7 @@ registerMultisigCommands(program);
 registerVerifyProofCommand(program);
 registerTopCommand(program);
 registerValidateCommand(program);
+registerHistoryCommand(program);
 
 // Health check command
 program

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 
-interface CopyButtonProps {
+export interface CopyButtonProps {
   /** The text string to copy to the clipboard (e.g. a public key or tx hash). */
   text: string;
   /** Optional accessible label describing what is being copied. */
@@ -12,10 +12,51 @@ interface CopyButtonProps {
 }
 
 /**
+ * Copies text using the async Clipboard API when available, falling back to
+ * a hidden textarea + document.execCommand('copy') otherwise.
+ * Returns true on success.
+ */
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  const sanitized = text.trim();
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(sanitized);
+      return true;
+    } catch {
+      // fall through to textarea fallback
+    }
+  }
+
+  if (typeof document === 'undefined') return false;
+
+  const textarea = document.createElement('textarea');
+  textarea.value = sanitized;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '0';
+  textarea.style.left = '0';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, sanitized.length);
+
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  } finally {
+    document.body.removeChild(textarea);
+  }
+  return ok;
+}
+
+/**
  * CopyButton — one-click clipboard copy with animated checkmark feedback.
  *
  * Behaviour:
- *  - Calls `navigator.clipboard.writeText` on click.
+ *  - Copies via `navigator.clipboard.writeText`, falling back to textarea selection.
  *  - Swaps the copy icon to a green checkmark for 2 seconds, then reverts.
  *  - Announces the "Copied!" state to screen readers via an `aria-live` region.
  *  - Fully keyboard-accessible (tab-focusable, activates on Enter/Space).
@@ -28,25 +69,29 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleCopy = useCallback(async () => {
-    if (copied) return;
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-
-      // Clear any outstanding timer so rapid clicks do not double-schedule.
+  useEffect(() => {
+    return () => {
       if (timeoutRef.current !== null) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(() => {
-        setCopied(false);
-        timeoutRef.current = null;
-      }, 2000);
-    } catch {
-      // Clipboard write may fail in unsupported or sandboxed environments;
-      // fail silently so the UI is never broken.
+    };
+  }, []);
+
+  const handleCopy = useCallback(async () => {
+    if (copied) return;
+
+    const ok = await copyTextToClipboard(text);
+    if (!ok) return;
+
+    setCopied(true);
+
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
     }
+    timeoutRef.current = setTimeout(() => {
+      setCopied(false);
+      timeoutRef.current = null;
+    }, 2000);
   }, [copied, text]);
 
   return (
@@ -70,7 +115,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
           .join(' ')}
       >
         {copied ? (
-          /* Checkmark icon */
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -85,7 +129,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
             <polyline points="20 6 9 17 4 12" />
           </svg>
         ) : (
-          /* Clipboard / copy icon */
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -103,7 +146,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
         )}
       </button>
 
-      {/* "Copied!" tooltip shown above the button when state is active */}
       {copied && (
         <span
           role="tooltip"
@@ -117,7 +159,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
         </span>
       )}
 
-      {/* Screen-reader live region — announces state change without moving focus */}
       <span
         role="status"
         aria-live="polite"
@@ -129,3 +170,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
     </span>
   );
 };
+
+export { CopyButton as CopyButtonComponent };
+
+export default CopyButton;

@@ -2,6 +2,33 @@ import React from 'react';
 import { WalletDTO } from '@stellar-alerts/shared';
 import { AddressTruncate } from '@/components/common/AddressTruncate';
 
+interface CopyButtonProps {
+  text: string;
+  label: string;
+  toastMessage: string;
+}
+
+const CopyButton: React.FC<CopyButtonProps> = ({ text, label, toastMessage }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text.trim());
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API unavailable; fail silently.
+    }
+  };
+
+  return (
+    <button type="button" onClick={handleCopy} aria-label={label} title={toastMessage} className="ml-1 text-slate-400 hover:text-white">
+      {copied ? <span className="text-emerald-400">✓</span> : <span>⧉</span>}
+    </button>
+  );
+};
+
 interface WalletListProps {
   wallets: WalletDTO[];
   selectedWalletId: string | null;

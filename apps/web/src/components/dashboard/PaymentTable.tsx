@@ -198,6 +198,27 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ payments = [], isLoa
         </div>
       )}
 
+      {/* Phishing / Address-Poisoning Quarantine Banner (#994) */}
+      {quarantinedPayments.length > 0 && (
+        <div
+          role="alert"
+          data-testid="address-poisoning-banner"
+          className="p-4 rounded-xl bg-red-950/80 border border-red-500/60 text-red-100 shadow-lg space-y-1.5"
+        >
+          <div className="flex items-center gap-2 font-bold text-sm tracking-wide text-red-200 uppercase">
+            <span aria-hidden="true">🚨</span>
+            <span>PHISHING / ADDRESS POISONING WARNING</span>
+          </div>
+          <p className="text-xs text-red-100/90 leading-relaxed">
+            {quarantinedPayments.length === 1
+              ? '1 suspected address-poisoning dust transaction has been quarantined.'
+              : `${quarantinedPayments.length} suspected address-poisoning dust transactions have been quarantined.`}{' '}
+            A first-time sender used a vanity lookalike address mimicking one of your trusted
+            counterparties. Do not copy the sender address from your transaction history.
+          </p>
+        </div>
+      )}
+
       {/* Table / Status Section */}
       {isLoading ? (
         <div className="p-12 text-center text-slate-400 text-sm">
@@ -233,8 +254,20 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ payments = [], isLoa
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
-              {filteredPayments.map((payment) => (
-                <tr key={payment.id} className="hover:bg-slate-800/30 transition-colors">
+              {filteredPayments.map((payment) => {
+                const isQuarantined = Boolean(
+                  payment.isQuarantined || payment.securityWarning?.type === 'ADDRESS_POISONING',
+                );
+                return (
+                <tr
+                  key={payment.id}
+                  data-quarantined={isQuarantined ? 'true' : undefined}
+                  className={
+                    isQuarantined
+                      ? 'bg-red-950/40 hover:bg-red-950/55 border-l-4 border-l-red-500 transition-colors'
+                      : 'hover:bg-slate-800/30 transition-colors'
+                  }
+                >
                   <td className="py-3.5 px-4 text-xs font-mono text-slate-400 whitespace-nowrap">
                     {new Date(payment.receivedAt).toLocaleString()}
                   </td>
@@ -282,7 +315,8 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ payments = [], isLoa
                     </a>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

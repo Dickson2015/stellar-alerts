@@ -3,6 +3,7 @@ import {
   registerSseAlertStreamRoutes,
   type SseRouteOptions,
 } from './sse-stream.controller';
+import { registerSagaRoutes } from './saga.routes';
 
 /** Alert routes mounted at /api/v1 (see app.ts). */
 export async function alertsRoutes(
@@ -10,4 +11,5 @@ export async function alertsRoutes(
   options: SseRouteOptions = {},
 ): Promise<void> {
   await registerSseAlertStreamRoutes(app, options);
+  await registerSagaRoutes(app);
 }

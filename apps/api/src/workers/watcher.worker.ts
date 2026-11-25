@@ -22,6 +22,10 @@ import { appendPaymentChecksum } from '../services/checksumChain.service';
 import { createLogger } from '../lib/logger';
 import { outboxService } from '../modules/outbox/outbox.service';
 import { velocityAnomalyDetector } from '../modules/security/velocity-detector';
+import {
+  addressPoisoningDetector,
+  type AddressPoisoningCheckResult,
+} from '../modules/security/address-poisoning.service';
 import { WorkerLifecycleManager } from '../lib/worker-lifecycle';
 import { startTelemetry, shutdownTelemetry } from '../lib/telemetry';
 import { startWorkerMetricsServer, stopWorkerMetricsServer } from '../lib/worker-metrics-server';
@@ -29,6 +33,9 @@ import { trace, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
 import { FullJitterBackoff } from './watcher/stream-reconnect';
 import { runTrustlineSentinelPass } from '../modules/stellar/trustline-sentinel.service';
 import { runManageDataSentinelPass } from '../modules/stellar/manage-data-sentinel';
+import { runSponsorshipSentinelPass } from '../modules/stellar/sponsorship-sentinel';
+import { runAssetIssuerSentinelPass } from '../modules/stellar/asset-issuer-sentinel';
+import { timeSeriesRollupEngine } from '../modules/analytics/timeseries-rollup';
 import { sequencePreconditionWatcher } from '../modules/stellar/sequence-watcher.service';
 import { anchorLifecycleWatcher } from '../modules/stellar/anchor-watcher.service';
 import { stateSnapshotManager } from '../modules/watcher/snapshot.service';
@@ -393,6 +400,14 @@ export async function processPaymentRecord(
       }
 
       if (isNewPayment && payment) {
+        timeSeriesRollupEngine.record({
+          amount,
+          asset,
+          assetIssuer,
+          fromAddress,
+          receivedAt,
+        });
+
         // Best-effort, non-throwing by design (see services/checksumChain.service.ts):
         // a checksum-chain bug must never block real payment ingestion/alerting.
         await appendPaymentChecksum({
@@ -407,8 +422,39 @@ export async function processPaymentRecord(
           receivedAt,
         });
 
+        // Automated Phishing & Address-Poisoning Lookalike Dust Detector (#994)
+        let poisoningResult: AddressPoisoningCheckResult | null = null;
+        try {
+          poisoningResult = await addressPoisoningDetector.evaluateIncomingPayment({
+            walletId: wallet.id,
+            walletPublicKey: wallet.publicKey,
+            userId: wallet.userId,
+            paymentId: payment.id,
+            txHash,
+            fromAddress,
+            amount: Number(amount),
+            asset,
+            timestamp: receivedAt.getTime(),
+          });
+          if (poisoningResult.isPoisoning) {
+            span.setAttribute('security.addressPoisoning', true);
+          }
+        } catch (poisonErr: unknown) {
+          log.warn(
+            { err: poisonErr instanceof Error ? poisonErr.message : String(poisonErr), txHash },
+            'Address-poisoning detection evaluation skipped',
+          );
+        }
+
         if (wallet.userId) {
-          await publishPaymentEvent(wallet.userId, payment);
+          const realtimePayment = poisoningResult?.isPoisoning
+            ? {
+                ...payment,
+                isQuarantined: true,
+                securityWarning: poisoningResult.securityWarning,
+              }
+            : payment;
+          await publishPaymentEvent(wallet.userId, realtimePayment);
         }
 
         // Dynamic Anomaly Detection for Flash Account Draining and Velocity Spikes (#931)
@@ -426,6 +472,13 @@ export async function processPaymentRecord(
           log.warn({ err: velErr?.message, txHash }, 'Velocity anomaly detection evaluation skipped');
         }
 
+        // Suspected address-poisoning dust transactions are quarantined and have
+        // already emitted a high-priority security alert; suppress the standard
+        // payment notification so attackers cannot abuse normal feeds.
+        if (poisoningResult?.isPoisoning) {
+          span.setAttribute('payment.quarantined', true);
+          span.setAttribute('payment.enqueued', true);
+        } else {
         const alertJobPayload = {
           paymentId: payment.id,
           txHash,
@@ -524,6 +577,7 @@ export async function processPaymentRecord(
         }
 
         span.setAttribute('payment.enqueued', dispatched);
+        }
       }
 
       if (gap.hasGap) {
@@ -1060,6 +1114,11 @@ async function runTrustlineSentinel(publicKeys: string[]): Promise<void> {
   } catch (err: unknown) {
     log.warn(`[WatcherWorker] Sequence watcher pass failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+  try {
+    await runSponsorshipSentinelPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Sponsorship sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /**
@@ -1133,6 +1192,9 @@ export async function runWatcher() {
   watcherLifecycle.registerCleanup('horizonStreams', () => {
     for (const close of walletStreams.values()) close();
     walletStreams.clear();
+  });
+  watcherLifecycle.registerCleanup('timeSeriesRollups', async () => {
+    await timeSeriesRollupEngine.flush();
   });
   watcherLifecycle.registerCleanup('prisma', async () => {
     await prisma.$disconnect();
@@ -1328,6 +1390,13 @@ export async function runWatcher() {
 
   const pollTimer = setInterval(poll, 30000);
   watcherLifecycle.trackInterval(pollTimer);
+
+  const rollupFlushTimer = setInterval(() => {
+    timeSeriesRollupEngine.flush().catch((err: unknown) => {
+      log.warn({ err }, 'Failed to flush time-series rollups; buffered data will be retried');
+    });
+  }, 5000);
+  watcherLifecycle.trackInterval(rollupFlushTimer);
 
   const registryTimer = setInterval(() => {
     loadContractRegistry();

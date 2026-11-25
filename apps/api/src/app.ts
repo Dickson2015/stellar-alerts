@@ -13,6 +13,7 @@ import { sorobanServer } from "./lib/soroban";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { walletsRoutes } from "./modules/wallets/wallets.routes";
 import { paymentsRoutes } from "./modules/payments/payments.routes";
+import { analyticsRoutes } from "./modules/analytics/analytics.routes";
 import { webhooksRoutes } from "./modules/webhooks/webhooks.routes";
 import { getWellKnownStellarAlertsMetadata } from "./modules/webhooks/ed25519-signer";
 import { accountRoutes } from "./modules/account/account.routes";
@@ -239,6 +240,7 @@ export const buildApp = async () => {
   app.register(authRoutes);
   app.register(walletsRoutes);
   app.register(paymentsRoutes);
+  app.register(analyticsRoutes);
   app.register(webhooksRoutes);
   app.register(accountRoutes);
   app.register(notificationsRoutes);

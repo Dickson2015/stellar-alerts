@@ -200,6 +200,7 @@ export type UserWhereInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeListRelationFilter
   simulations?: Prisma.TransactionSimulationListRelationFilter
   apiKeys?: Prisma.ApiKeyListRelationFilter
+  webAuthnCredentials?: Prisma.WebAuthnCredentialListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -226,6 +227,7 @@ export type UserOrderByWithRelationInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeOrderByRelationAggregateInput
   simulations?: Prisma.TransactionSimulationOrderByRelationAggregateInput
   apiKeys?: Prisma.ApiKeyOrderByRelationAggregateInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -255,6 +257,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   telegramSyncCodes?: Prisma.TelegramSyncCodeListRelationFilter
   simulations?: Prisma.TransactionSimulationListRelationFilter
   apiKeys?: Prisma.ApiKeyListRelationFilter
+  webAuthnCredentials?: Prisma.WebAuthnCredentialListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -303,6 +306,7 @@ export type UserCreateInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -329,6 +333,7 @@ export type UserUncheckedCreateInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -355,6 +360,7 @@ export type UserUpdateInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -381,6 +387,7 @@ export type UserUncheckedUpdateInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -455,6 +462,20 @@ export type BoolFieldUpdateOperationsInput = {
 
 export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
+}
+
+export type UserCreateNestedOneWithoutWebAuthnCredentialsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWebAuthnCredentialsInput, Prisma.UserUncheckedCreateWithoutWebAuthnCredentialsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWebAuthnCredentialsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutWebAuthnCredentialsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWebAuthnCredentialsInput, Prisma.UserUncheckedCreateWithoutWebAuthnCredentialsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWebAuthnCredentialsInput
+  upsert?: Prisma.UserUpsertWithoutWebAuthnCredentialsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutWebAuthnCredentialsInput, Prisma.UserUpdateWithoutWebAuthnCredentialsInput>, Prisma.UserUncheckedUpdateWithoutWebAuthnCredentialsInput>
 }
 
 export type UserCreateNestedOneWithoutApiKeysInput = {
@@ -715,6 +736,126 @@ export type UserUpdateOneRequiredWithoutRefreshSessionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutRefreshSessionsInput, Prisma.UserUpdateWithoutRefreshSessionsInput>, Prisma.UserUncheckedUpdateWithoutRefreshSessionsInput>
 }
 
+export type UserCreateWithoutWebAuthnCredentialsInput = {
+  id?: string
+  email: string
+  mfaSecret?: string | null
+  mfaEnabled?: boolean
+  createdAt?: Date | string
+  wallets?: Prisma.WalletCreateNestedManyWithoutUserInput
+  exportJobs?: Prisma.ExportJobCreateNestedManyWithoutUserInput
+  webhooks?: Prisma.WebhookCreateNestedManyWithoutUserInput
+  notifyPrefs?: Prisma.NotificationPreferenceCreateNestedOneWithoutUserInput
+  sorobanSubscriptions?: Prisma.SorobanContractSubscriptionCreateNestedManyWithoutUserInput
+  multisigSignerWatches?: Prisma.MultisigSignerWatcherCreateNestedManyWithoutUserInput
+  anchorWatches?: Prisma.AnchorTransactionWatchCreateNestedManyWithoutUserInput
+  dexSwapWatches?: Prisma.DexSwapWatchCreateNestedManyWithoutUserInput
+  alertRules?: Prisma.AlertRuleCreateNestedManyWithoutUserInput
+  deliveryAttempts?: Prisma.NotificationDeliveryAttemptCreateNestedManyWithoutUserInput
+  deadLetters?: Prisma.DeadLetterCreateNestedManyWithoutUserInput
+  webhookSandboxReplays?: Prisma.WebhookSandboxReplayCreateNestedManyWithoutUserInput
+  mfaRecoveryCodes?: Prisma.MfaRecoveryCodeCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutUserInput
+  refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
+  telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
+  simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
+  apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutWebAuthnCredentialsInput = {
+  id?: string
+  email: string
+  mfaSecret?: string | null
+  mfaEnabled?: boolean
+  createdAt?: Date | string
+  wallets?: Prisma.WalletUncheckedCreateNestedManyWithoutUserInput
+  exportJobs?: Prisma.ExportJobUncheckedCreateNestedManyWithoutUserInput
+  webhooks?: Prisma.WebhookUncheckedCreateNestedManyWithoutUserInput
+  notifyPrefs?: Prisma.NotificationPreferenceUncheckedCreateNestedOneWithoutUserInput
+  sorobanSubscriptions?: Prisma.SorobanContractSubscriptionUncheckedCreateNestedManyWithoutUserInput
+  multisigSignerWatches?: Prisma.MultisigSignerWatcherUncheckedCreateNestedManyWithoutUserInput
+  anchorWatches?: Prisma.AnchorTransactionWatchUncheckedCreateNestedManyWithoutUserInput
+  dexSwapWatches?: Prisma.DexSwapWatchUncheckedCreateNestedManyWithoutUserInput
+  alertRules?: Prisma.AlertRuleUncheckedCreateNestedManyWithoutUserInput
+  deliveryAttempts?: Prisma.NotificationDeliveryAttemptUncheckedCreateNestedManyWithoutUserInput
+  deadLetters?: Prisma.DeadLetterUncheckedCreateNestedManyWithoutUserInput
+  webhookSandboxReplays?: Prisma.WebhookSandboxReplayUncheckedCreateNestedManyWithoutUserInput
+  mfaRecoveryCodes?: Prisma.MfaRecoveryCodeUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutUserInput
+  refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
+  telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
+  simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
+  apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutWebAuthnCredentialsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutWebAuthnCredentialsInput, Prisma.UserUncheckedCreateWithoutWebAuthnCredentialsInput>
+}
+
+export type UserUpsertWithoutWebAuthnCredentialsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutWebAuthnCredentialsInput, Prisma.UserUncheckedUpdateWithoutWebAuthnCredentialsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutWebAuthnCredentialsInput, Prisma.UserUncheckedCreateWithoutWebAuthnCredentialsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutWebAuthnCredentialsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutWebAuthnCredentialsInput, Prisma.UserUncheckedUpdateWithoutWebAuthnCredentialsInput>
+}
+
+export type UserUpdateWithoutWebAuthnCredentialsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  wallets?: Prisma.WalletUpdateManyWithoutUserNestedInput
+  exportJobs?: Prisma.ExportJobUpdateManyWithoutUserNestedInput
+  webhooks?: Prisma.WebhookUpdateManyWithoutUserNestedInput
+  notifyPrefs?: Prisma.NotificationPreferenceUpdateOneWithoutUserNestedInput
+  sorobanSubscriptions?: Prisma.SorobanContractSubscriptionUpdateManyWithoutUserNestedInput
+  multisigSignerWatches?: Prisma.MultisigSignerWatcherUpdateManyWithoutUserNestedInput
+  anchorWatches?: Prisma.AnchorTransactionWatchUpdateManyWithoutUserNestedInput
+  dexSwapWatches?: Prisma.DexSwapWatchUpdateManyWithoutUserNestedInput
+  alertRules?: Prisma.AlertRuleUpdateManyWithoutUserNestedInput
+  deliveryAttempts?: Prisma.NotificationDeliveryAttemptUpdateManyWithoutUserNestedInput
+  deadLetters?: Prisma.DeadLetterUpdateManyWithoutUserNestedInput
+  webhookSandboxReplays?: Prisma.WebhookSandboxReplayUpdateManyWithoutUserNestedInput
+  mfaRecoveryCodes?: Prisma.MfaRecoveryCodeUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutUserNestedInput
+  refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
+  telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
+  simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
+  apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutWebAuthnCredentialsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  wallets?: Prisma.WalletUncheckedUpdateManyWithoutUserNestedInput
+  exportJobs?: Prisma.ExportJobUncheckedUpdateManyWithoutUserNestedInput
+  webhooks?: Prisma.WebhookUncheckedUpdateManyWithoutUserNestedInput
+  notifyPrefs?: Prisma.NotificationPreferenceUncheckedUpdateOneWithoutUserNestedInput
+  sorobanSubscriptions?: Prisma.SorobanContractSubscriptionUncheckedUpdateManyWithoutUserNestedInput
+  multisigSignerWatches?: Prisma.MultisigSignerWatcherUncheckedUpdateManyWithoutUserNestedInput
+  anchorWatches?: Prisma.AnchorTransactionWatchUncheckedUpdateManyWithoutUserNestedInput
+  dexSwapWatches?: Prisma.DexSwapWatchUncheckedUpdateManyWithoutUserNestedInput
+  alertRules?: Prisma.AlertRuleUncheckedUpdateManyWithoutUserNestedInput
+  deliveryAttempts?: Prisma.NotificationDeliveryAttemptUncheckedUpdateManyWithoutUserNestedInput
+  deadLetters?: Prisma.DeadLetterUncheckedUpdateManyWithoutUserNestedInput
+  webhookSandboxReplays?: Prisma.WebhookSandboxReplayUncheckedUpdateManyWithoutUserNestedInput
+  mfaRecoveryCodes?: Prisma.MfaRecoveryCodeUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutUserNestedInput
+  refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
+  telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
+  simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
+  apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+}
+
 export type UserCreateWithoutApiKeysInput = {
   id?: string
   email: string
@@ -738,6 +879,7 @@ export type UserCreateWithoutApiKeysInput = {
   refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutApiKeysInput = {
@@ -763,6 +905,7 @@ export type UserUncheckedCreateWithoutApiKeysInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutApiKeysInput = {
@@ -804,6 +947,7 @@ export type UserUpdateWithoutApiKeysInput = {
   refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutApiKeysInput = {
@@ -829,6 +973,7 @@ export type UserUncheckedUpdateWithoutApiKeysInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutWalletsInput = {
@@ -854,6 +999,7 @@ export type UserCreateWithoutWalletsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWalletsInput = {
@@ -879,6 +1025,7 @@ export type UserUncheckedCreateWithoutWalletsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWalletsInput = {
@@ -920,6 +1067,7 @@ export type UserUpdateWithoutWalletsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWalletsInput = {
@@ -945,6 +1093,7 @@ export type UserUncheckedUpdateWithoutWalletsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutNotifyPrefsInput = {
@@ -970,6 +1119,7 @@ export type UserCreateWithoutNotifyPrefsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutNotifyPrefsInput = {
@@ -995,6 +1145,7 @@ export type UserUncheckedCreateWithoutNotifyPrefsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutNotifyPrefsInput = {
@@ -1036,6 +1187,7 @@ export type UserUpdateWithoutNotifyPrefsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutNotifyPrefsInput = {
@@ -1061,6 +1213,7 @@ export type UserUncheckedUpdateWithoutNotifyPrefsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAlertRulesInput = {
@@ -1086,6 +1239,7 @@ export type UserCreateWithoutAlertRulesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAlertRulesInput = {
@@ -1111,6 +1265,7 @@ export type UserUncheckedCreateWithoutAlertRulesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAlertRulesInput = {
@@ -1152,6 +1307,7 @@ export type UserUpdateWithoutAlertRulesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAlertRulesInput = {
@@ -1177,6 +1333,7 @@ export type UserUncheckedUpdateWithoutAlertRulesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutTelegramSyncCodesInput = {
@@ -1202,6 +1359,7 @@ export type UserCreateWithoutTelegramSyncCodesInput = {
   refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutTelegramSyncCodesInput = {
@@ -1227,6 +1385,7 @@ export type UserUncheckedCreateWithoutTelegramSyncCodesInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutTelegramSyncCodesInput = {
@@ -1268,6 +1427,7 @@ export type UserUpdateWithoutTelegramSyncCodesInput = {
   refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutTelegramSyncCodesInput = {
@@ -1293,6 +1453,7 @@ export type UserUncheckedUpdateWithoutTelegramSyncCodesInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutWebhooksInput = {
@@ -1318,6 +1479,7 @@ export type UserCreateWithoutWebhooksInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWebhooksInput = {
@@ -1343,6 +1505,7 @@ export type UserUncheckedCreateWithoutWebhooksInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWebhooksInput = {
@@ -1384,6 +1547,7 @@ export type UserUpdateWithoutWebhooksInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWebhooksInput = {
@@ -1409,6 +1573,7 @@ export type UserUncheckedUpdateWithoutWebhooksInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutExportJobsInput = {
@@ -1434,6 +1599,7 @@ export type UserCreateWithoutExportJobsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutExportJobsInput = {
@@ -1459,6 +1625,7 @@ export type UserUncheckedCreateWithoutExportJobsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutExportJobsInput = {
@@ -1500,6 +1667,7 @@ export type UserUpdateWithoutExportJobsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutExportJobsInput = {
@@ -1525,6 +1693,7 @@ export type UserUncheckedUpdateWithoutExportJobsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutSimulationsInput = {
@@ -1550,6 +1719,7 @@ export type UserCreateWithoutSimulationsInput = {
   refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutSimulationsInput = {
@@ -1575,6 +1745,7 @@ export type UserUncheckedCreateWithoutSimulationsInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutSimulationsInput = {
@@ -1616,6 +1787,7 @@ export type UserUpdateWithoutSimulationsInput = {
   refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSimulationsInput = {
@@ -1641,6 +1813,7 @@ export type UserUncheckedUpdateWithoutSimulationsInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutSorobanSubscriptionsInput = {
@@ -1666,6 +1839,7 @@ export type UserCreateWithoutSorobanSubscriptionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutSorobanSubscriptionsInput = {
@@ -1691,6 +1865,7 @@ export type UserUncheckedCreateWithoutSorobanSubscriptionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutSorobanSubscriptionsInput = {
@@ -1732,6 +1907,7 @@ export type UserUpdateWithoutSorobanSubscriptionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSorobanSubscriptionsInput = {
@@ -1757,6 +1933,7 @@ export type UserUncheckedUpdateWithoutSorobanSubscriptionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutMultisigSignerWatchesInput = {
@@ -1782,6 +1959,7 @@ export type UserCreateWithoutMultisigSignerWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutMultisigSignerWatchesInput = {
@@ -1807,6 +1985,7 @@ export type UserUncheckedCreateWithoutMultisigSignerWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutMultisigSignerWatchesInput = {
@@ -1848,6 +2027,7 @@ export type UserUpdateWithoutMultisigSignerWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMultisigSignerWatchesInput = {
@@ -1873,6 +2053,7 @@ export type UserUncheckedUpdateWithoutMultisigSignerWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAnchorWatchesInput = {
@@ -1898,6 +2079,7 @@ export type UserCreateWithoutAnchorWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAnchorWatchesInput = {
@@ -1923,6 +2105,7 @@ export type UserUncheckedCreateWithoutAnchorWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAnchorWatchesInput = {
@@ -1964,6 +2147,7 @@ export type UserUpdateWithoutAnchorWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAnchorWatchesInput = {
@@ -1989,6 +2173,7 @@ export type UserUncheckedUpdateWithoutAnchorWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutDexSwapWatchesInput = {
@@ -2014,6 +2199,7 @@ export type UserCreateWithoutDexSwapWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutDexSwapWatchesInput = {
@@ -2039,6 +2225,7 @@ export type UserUncheckedCreateWithoutDexSwapWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutDexSwapWatchesInput = {
@@ -2080,6 +2267,7 @@ export type UserUpdateWithoutDexSwapWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutDexSwapWatchesInput = {
@@ -2105,6 +2293,7 @@ export type UserUncheckedUpdateWithoutDexSwapWatchesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutNotificationDeliveriesInput = {
@@ -2130,6 +2319,7 @@ export type UserCreateWithoutNotificationDeliveriesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutNotificationDeliveriesInput = {
@@ -2155,6 +2345,7 @@ export type UserUncheckedCreateWithoutNotificationDeliveriesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutNotificationDeliveriesInput = {
@@ -2196,6 +2387,7 @@ export type UserUpdateWithoutNotificationDeliveriesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutNotificationDeliveriesInput = {
@@ -2221,6 +2413,7 @@ export type UserUncheckedUpdateWithoutNotificationDeliveriesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutDeliveryAttemptsInput = {
@@ -2246,6 +2439,7 @@ export type UserCreateWithoutDeliveryAttemptsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutDeliveryAttemptsInput = {
@@ -2271,6 +2465,7 @@ export type UserUncheckedCreateWithoutDeliveryAttemptsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutDeliveryAttemptsInput = {
@@ -2312,6 +2507,7 @@ export type UserUpdateWithoutDeliveryAttemptsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutDeliveryAttemptsInput = {
@@ -2337,6 +2533,7 @@ export type UserUncheckedUpdateWithoutDeliveryAttemptsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutDeadLettersInput = {
@@ -2362,6 +2559,7 @@ export type UserCreateWithoutDeadLettersInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutDeadLettersInput = {
@@ -2387,6 +2585,7 @@ export type UserUncheckedCreateWithoutDeadLettersInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutDeadLettersInput = {
@@ -2428,6 +2627,7 @@ export type UserUpdateWithoutDeadLettersInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutDeadLettersInput = {
@@ -2453,6 +2653,7 @@ export type UserUncheckedUpdateWithoutDeadLettersInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutWebhookSandboxReplaysInput = {
@@ -2478,6 +2679,7 @@ export type UserCreateWithoutWebhookSandboxReplaysInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWebhookSandboxReplaysInput = {
@@ -2503,6 +2705,7 @@ export type UserUncheckedCreateWithoutWebhookSandboxReplaysInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWebhookSandboxReplaysInput = {
@@ -2544,6 +2747,7 @@ export type UserUpdateWithoutWebhookSandboxReplaysInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWebhookSandboxReplaysInput = {
@@ -2569,6 +2773,7 @@ export type UserUncheckedUpdateWithoutWebhookSandboxReplaysInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutMfaRecoveryCodesInput = {
@@ -2594,6 +2799,7 @@ export type UserCreateWithoutMfaRecoveryCodesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutMfaRecoveryCodesInput = {
@@ -2619,6 +2825,7 @@ export type UserUncheckedCreateWithoutMfaRecoveryCodesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutMfaRecoveryCodesInput = {
@@ -2660,6 +2867,7 @@ export type UserUpdateWithoutMfaRecoveryCodesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMfaRecoveryCodesInput = {
@@ -2685,6 +2893,7 @@ export type UserUncheckedUpdateWithoutMfaRecoveryCodesInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutRefreshSessionsInput = {
@@ -2710,6 +2919,7 @@ export type UserCreateWithoutRefreshSessionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutRefreshSessionsInput = {
@@ -2735,6 +2945,7 @@ export type UserUncheckedCreateWithoutRefreshSessionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedCreateNestedManyWithoutUserInput
   simulations?: Prisma.TransactionSimulationUncheckedCreateNestedManyWithoutUserInput
   apiKeys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutUserInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutRefreshSessionsInput = {
@@ -2776,6 +2987,7 @@ export type UserUpdateWithoutRefreshSessionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRefreshSessionsInput = {
@@ -2801,6 +3013,7 @@ export type UserUncheckedUpdateWithoutRefreshSessionsInput = {
   telegramSyncCodes?: Prisma.TelegramSyncCodeUncheckedUpdateManyWithoutUserNestedInput
   simulations?: Prisma.TransactionSimulationUncheckedUpdateManyWithoutUserNestedInput
   apiKeys?: Prisma.ApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  webAuthnCredentials?: Prisma.WebAuthnCredentialUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -2826,6 +3039,7 @@ export type UserCountOutputType = {
   telegramSyncCodes: number
   simulations: number
   apiKeys: number
+  webAuthnCredentials: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2846,6 +3060,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   telegramSyncCodes?: boolean | UserCountOutputTypeCountTelegramSyncCodesArgs
   simulations?: boolean | UserCountOutputTypeCountSimulationsArgs
   apiKeys?: boolean | UserCountOutputTypeCountApiKeysArgs
+  webAuthnCredentials?: boolean | UserCountOutputTypeCountWebAuthnCredentialsArgs
 }
 
 /**
@@ -2977,6 +3192,13 @@ export type UserCountOutputTypeCountApiKeysArgs<ExtArgs extends runtime.Types.Ex
   where?: Prisma.ApiKeyWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountWebAuthnCredentialsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WebAuthnCredentialWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -3002,6 +3224,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   telegramSyncCodes?: boolean | Prisma.User$telegramSyncCodesArgs<ExtArgs>
   simulations?: boolean | Prisma.User$simulationsArgs<ExtArgs>
   apiKeys?: boolean | Prisma.User$apiKeysArgs<ExtArgs>
+  webAuthnCredentials?: boolean | Prisma.User$webAuthnCredentialsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -3049,6 +3272,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   telegramSyncCodes?: boolean | Prisma.User$telegramSyncCodesArgs<ExtArgs>
   simulations?: boolean | Prisma.User$simulationsArgs<ExtArgs>
   apiKeys?: boolean | Prisma.User$apiKeysArgs<ExtArgs>
+  webAuthnCredentials?: boolean | Prisma.User$webAuthnCredentialsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -3075,6 +3299,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     telegramSyncCodes: Prisma.$TelegramSyncCodePayload<ExtArgs>[]
     simulations: Prisma.$TransactionSimulationPayload<ExtArgs>[]
     apiKeys: Prisma.$ApiKeyPayload<ExtArgs>[]
+    webAuthnCredentials: Prisma.$WebAuthnCredentialPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -3494,6 +3719,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   telegramSyncCodes<T extends Prisma.User$telegramSyncCodesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$telegramSyncCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TelegramSyncCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   simulations<T extends Prisma.User$simulationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$simulationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TransactionSimulationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   apiKeys<T extends Prisma.User$apiKeysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$apiKeysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  webAuthnCredentials<T extends Prisma.User$webAuthnCredentialsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$webAuthnCredentialsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WebAuthnCredentialPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4345,6 +4571,30 @@ export type User$apiKeysArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
   take?: number
   skip?: number
   distinct?: Prisma.ApiKeyScalarFieldEnum | Prisma.ApiKeyScalarFieldEnum[]
+}
+
+/**
+ * User.webAuthnCredentials
+ */
+export type User$webAuthnCredentialsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WebAuthnCredential
+   */
+  select?: Prisma.WebAuthnCredentialSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WebAuthnCredential
+   */
+  omit?: Prisma.WebAuthnCredentialOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WebAuthnCredentialInclude<ExtArgs> | null
+  where?: Prisma.WebAuthnCredentialWhereInput
+  orderBy?: Prisma.WebAuthnCredentialOrderByWithRelationInput | Prisma.WebAuthnCredentialOrderByWithRelationInput[]
+  cursor?: Prisma.WebAuthnCredentialWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WebAuthnCredentialScalarFieldEnum | Prisma.WebAuthnCredentialScalarFieldEnum[]
 }
 
 /**

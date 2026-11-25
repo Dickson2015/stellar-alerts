@@ -3,6 +3,7 @@ import { authenticate, requireScopes } from '../../middleware/rbac.middleware';
 import { idempotencyHooks } from '../../middleware/idempotency.middleware';
 import { webhooksController } from './webhooks.controller';
 import { webhookSandboxReplayController } from './sandbox.controller';
+import { requireWebAuthnStepUp } from '../auth/webauthn.service';
 
 export async function webhooksRoutes(app: FastifyInstance) {
   // Unified auth (API key or session JWT) + webhooks:admin scope enforcement
@@ -53,7 +54,12 @@ export async function webhooksRoutes(app: FastifyInstance) {
   );
   app.post(
     '/webhooks/:id/rotate-secret',
-    { preValidation: idempotent.preValidation, preHandler: [adminScope], onSend: idempotent.onSend, onResponse: idempotent.onResponse },
+    {
+      preValidation: idempotent.preValidation,
+      preHandler: [adminScope, requireWebAuthnStepUp('rotating a webhook signing secret')],
+      onSend: idempotent.onSend,
+      onResponse: idempotent.onResponse,
+    },
     webhooksController.rotateSecret.bind(webhooksController)
   );
   app.get(

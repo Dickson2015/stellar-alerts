@@ -284,10 +284,11 @@ describe('SEP-0010 Stellar Web Authentication API (#634)', () => {
 
   describe('challenge structure', () => {
     const build = (ops: StellarSdk.xdr.Operation[], client: StellarSdk.Keypair) => {
+      const now = Math.floor(Date.now() / 1000);
       const tx = new StellarSdk.TransactionBuilder(new StellarSdk.Account(serverKeypair.publicKey(), '-1'), {
         fee: '100',
         networkPassphrase,
-        timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 300 },
+        timebounds: { minTime: Math.max(0, now - 30), maxTime: now + 300 },
       });
       ops.forEach((op) => tx.addOperation(op));
       const built = tx.build();

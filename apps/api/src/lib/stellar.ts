@@ -27,6 +27,16 @@ export interface DecodedStellarAsset {
   assetIssuer: string | null;
 }
 
+export interface HorizonClaimableBalanceRecord {
+  id: string;
+  asset: string;
+  amount: string;
+  sponsor: string;
+  createdAt: string;
+  lastModifiedLedger: number;
+  claimants: Array<{ destination: string; predicate: unknown }>;
+}
+
 export interface SacTransfer {
   contractId: string;
   assetCode: string | null;
@@ -718,6 +728,49 @@ export const stellar = {
           amount: record.amount,
         };
       });
+    } catch (error: any) {
+      console.warn(`[Stellar] Error fetching claimable balances for ${publicKey}:`, error?.message || error);
+      return [];
+    }
+  },
+
+  /**
+   * Claimable balances an account can claim, preserving each claimant's raw
+   * Horizon predicate tree (unconditional / abs_before / rel_before / not /
+   * and / or). `getClaimableBalancesForClaimant` intentionally flattens the
+   * claimant list, so this variant exists for the claimable-balance watcher,
+   * which needs the predicates to compute exact claim windows.
+   */
+  async getClaimableBalancesWithPredicates(
+    publicKey: string,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<HorizonClaimableBalanceRecord[]> {
+    if (!publicKey || !StellarSdk.StrKey.isValidEd25519PublicKey(publicKey)) {
+      return [];
+    }
+    try {
+      const page: any = await withDeadline(
+        () => (server.claimableBalances() as any).claimant(publicKey).limit(200).call(),
+        options.timeoutMs ?? env.HORIZON_REQUEST_TIMEOUT_MS,
+        options.signal,
+        'Horizon',
+      );
+
+      return (page.records as any[]).map((record) => ({
+        id: record.id,
+        asset: record.asset,
+        amount: record.amount,
+        sponsor: record.sponsor ?? '',
+        // Horizon does not expose a separate creation timestamp for claimable
+        // balances; `rel_before` is anchored to when the entry was last
+        // modified, which is the creation ledger for an unclaimed balance.
+        createdAt: record.last_modified_time ?? new Date().toISOString(),
+        lastModifiedLedger: record.last_modified_ledger ?? 0,
+        claimants: (record.claimants ?? []).map((claimant: any) => ({
+          destination: claimant.destination,
+          predicate: claimant.predicate,
+        })),
+      }));
     } catch (error: any) {
       console.warn(`[Stellar] Error fetching claimable balances for ${publicKey}:`, error?.message || error);
       return [];
