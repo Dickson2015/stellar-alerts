@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RuleBuilder, RuleAST } from './RuleBuilder';
 
@@ -118,7 +118,9 @@ describe('RuleBuilder', () => {
     await user.click(screen.getByRole('button', { name: 'Sign & Confirm' }));
 
     expect(signer).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledTimes(1);
+    // Header construction is async; await the save instead of depending on
+    // microtask timing under parallel test execution.
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [savedAst, headers] = onSave.mock.calls[0];
     expect(savedAst).toEqual({
       logic: 'AND',

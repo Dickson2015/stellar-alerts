@@ -10,9 +10,13 @@ import { webhooksService } from '../modules/webhooks/webhooks.service';
 import { dispatchWhatsAppAlert, WhatsAppInvalidNumberError } from '../utils/whatsapp';
 import { prisma } from './prisma';
 import { createLogger } from './logger';
-import { publishDeliveryEvent } from './realtime';
+import { publishAlertEvent, publishDeliveryEvent } from './realtime';
 import { deliverWithIdempotency } from './delivery';
 import { instrumentedWebhookFetch } from './webhook-telemetry';
+import {
+  createGuardedTransport,
+  type GuardedTransport,
+} from '../workers/dispatcher/transport-guard';
 import { persistDeadLetter } from './dead-letter';
 import { ssrfSafeFetch, validateUrlForSsrf } from '../utils/ssrf';
 import { decryptPersonalField } from '../utils/privacy';
@@ -172,6 +176,37 @@ async function readWebhookResponseBody(response: { text(): Promise<string> }): P
   }
 }
 
+/**
+ * Adapts the instrumented node-http transport to the guard's transport
+ * interface. The guard owns redirect policy (manual redirects, SSRF
+ * re-validation, quarantine); `instrumentedWebhookFetch` owns per-phase
+ * telemetry and the mid-transfer size/rate limits. Keeping the adapter here
+ * avoids a circular import between the two modules.
+ */
+function createInstrumentedGuardTransport(
+  meta?: { webhookId?: string; traceparent?: string },
+): GuardedTransport {
+  return async (url, init) => {
+    const response = await instrumentedWebhookFetch(url, {
+      method: init.method,
+      headers: init.headers,
+      body: init.body,
+      timeoutMs: init.timeoutMs,
+      webhookId: meta?.webhookId,
+      traceparent: meta?.traceparent,
+    });
+    return {
+      status: response.status,
+      ok: response.ok,
+      headers: response.headers,
+      // The instrumented transport already buffered (and size/rate-limited)
+      // the body, so no Web Stream is exposed here; the guard falls back to
+      // checking the buffered text for its final size cap.
+      text: () => response.text(),
+    };
+  };
+}
+
 export async function getOrCreateCircuitBreaker(
   webhookId: string,
 ): Promise<CircuitBreaker<any>> {
@@ -181,22 +216,27 @@ export async function getOrCreateCircuitBreaker(
 
   const breaker: CircuitBreaker<any> = new CircuitBreaker(
     async (url: string, payload: string, headers: Record<string, string>, meta?: WebhookDispatchMeta) => {
-      // Routed through the instrumented transport so every attempt contributes
-      // DNS / TCP / TLS / TTFB / response-stream spans and histograms, and so
-      // the subscriber receives a W3C traceparent it can join.
-      const response = await instrumentedWebhookFetch(url, {
+      // Routed through the transport guard so redirects are handled manually
+      // and every hop is re-validated against the SSRF policy, then through
+      // the instrumented node-http transport for per-phase telemetry and
+      // mid-transfer size/rate limits. The initial URL was already validated
+      // in `dispatchWebhookAndLog`, so only redirect hops need re-validation.
+      const guardedFetch = createGuardedTransport({
+        transport: createInstrumentedGuardTransport(meta),
+        validateInitialUrl: false,
+      });
+      const response = await guardedFetch(url, {
         method: "POST",
         headers,
         body: payload,
         timeoutMs: env.WEBHOOK_TIMEOUT_MS,
-        webhookId: meta?.webhookId,
-        traceparent: meta?.traceparent,
+        redirect: 'manual',
       });
 
       if (response.status === 429) {
         const error = new Error(`Rate limited: ${response.status}`) as Error & {
           statusCode?: number;
-          headers?: Headers;
+          headers?: Pick<Headers, 'get'>;
           responseBody?: string;
         };
         error.statusCode = 429;
@@ -637,6 +677,9 @@ try {
   );
 
   registerRedisCleanupTask(async () => {
+    // Closed first so its final flush happens while the queues still exist.
+    if (alertSpillover) await alertSpillover.close().catch(() => {});
+    alertSpillover = null;
     if (alertWorker) await alertWorker.close().catch(() => {});
     if (alertQueueEvents) await alertQueueEvents.close().catch(() => {});
     if (alertQueue) await alertQueue.close().catch(() => {});
@@ -965,6 +1008,16 @@ export async function processAlertDispatch(data: AlertJobData) {
 
     const userId = wallet?.user?.id ?? null;
 
+    if (userId) {
+      void publishAlertEvent({
+        userId,
+        event: 'alert',
+        severity: String(data.severity ?? 'MEDIUM').toUpperCase(),
+        walletId: data.walletId,
+        payload: webhookPayload,
+      });
+    }
+
     const recordDeadLetter = (channel: string, destination: string | null, err: any) =>
       persistDeadLetter({
         paymentId: data.paymentId,
@@ -1188,47 +1241,93 @@ export async function processAlertDispatch(data: AlertJobData) {
   }
 }
 
-export async function enqueuePaymentAlert(data: AlertJobData) {
-  if (queueLaneManager) {
-    try {
-      const lane = resolveLaneForAlert(data);
-      const job = await queueLaneManager.enqueue(lane, "dispatch-alert", data, {
-        jobId: `payment-${data.txHash}`,
-      });
-      queueLog.info(
-        { jobId: job.id, txHash: data.txHash, lane, requestId: data.requestId },
-        '📨 Enqueued payment alert job into priority lane',
-      );
-      return job;
-    } catch (err: any) {
-      queueLog.warn(
-        { txHash: data.txHash, err: err.message },
-        'Failed to enqueue alert into priority lane. Falling back to direct dispatch...',
-      );
-      return processAlertDispatch(data);
-    }
+/** Sends a live or replayed alert job to BullMQ under its original job ID. */
+async function addAlertJobToRedis(job: SpilloverJob<AlertJobData>) {
+  if (job.lane && queueLaneManager) {
+    return queueLaneManager.enqueue(job.lane as QueueLane, job.name, job.data, { jobId: job.jobId });
   }
+  if (!alertQueue) throw new Error('Alert queue is not initialized');
+  return alertQueue.add(job.name as never, job.data as never, {
+    jobId: job.jobId,
+    attempts: 5,
+    backoff: {
+      type: "exponential",
+      delay: 2000,
+    },
+  });
+}
 
-  if (!alertQueue) {
+async function isAlertRedisAvailable(): Promise<boolean> {
+  if (!alertQueue) return false;
+  const queue = alertQueue;
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        const client = (await queue.client) as unknown as { status: string; ping(): Promise<string> };
+        // Checked first: a ping on a down connection would sit in the offline queue.
+        return client.status === 'ready' && (await client.ping()) === 'PONG';
+      })(),
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(false), env.ALERT_SPILLOVER_ENQUEUE_TIMEOUT_MS);
+        timer.unref();
+      }),
+    ]);
+  } catch {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+let alertSpillover: DiskSpilloverQueue<AlertJobData, Awaited<ReturnType<typeof addAlertJobToRedis>>> | null = null;
+
+function getAlertSpillover() {
+  alertSpillover ??= new DiskSpilloverQueue({
+    directory: env.ALERT_SPILLOVER_DIR,
+    enqueueTimeoutMs: env.ALERT_SPILLOVER_ENQUEUE_TIMEOUT_MS,
+    sink: addAlertJobToRedis,
+    isAvailable: isAlertRedisAvailable,
+    onError: (message, err) => {
+      queueLog.error({ err: err instanceof Error ? err.message : String(err) }, message);
+    },
+  });
+  return alertSpillover;
+}
+
+/**
+ * Recovers jobs journaled before a restart. Without this they would only be
+ * picked up the next time an enqueue happened to fail.
+ */
+export async function startAlertSpillover(): Promise<void> {
+  if (!queueLaneManager && !alertQueue) return;
+  await getAlertSpillover().open();
+}
+
+export async function enqueuePaymentAlert(data: AlertJobData) {
+  if (!queueLaneManager && !alertQueue) {
     queueLog.info({ txHash: data.txHash }, 'Queue not connected for payment. Dispatching alert directly in-process...');
     return processAlertDispatch(data);
   }
 
+  const jobId = `payment-${data.txHash}`;
+  const lane = queueLaneManager ? resolveLaneForAlert(data) : undefined;
+
   try {
-    const job = await alertQueue.add("dispatch-alert", data, {
-      jobId: `payment-${data.txHash}`,
-      attempts: 5,
-      backoff: {
-        type: "exponential",
-        delay: 2000,
-      },
-    });
-    queueLog.info({ jobId: job.id, txHash: data.txHash, requestId: data.requestId }, '📨 Enqueued payment alert job');
-    return job;
+    const outcome = await getAlertSpillover().enqueue({ jobId, name: 'dispatch-alert', data, lane });
+    if (outcome.spilled) {
+      queueLog.warn({ jobId, txHash: data.txHash, lane }, '💾 Redis unavailable; alert job journaled to disk');
+      return { id: jobId, spilled: true as const };
+    }
+    queueLog.info(
+      { jobId: outcome.result.id, txHash: data.txHash, lane, requestId: data.requestId },
+      '📨 Enqueued payment alert job',
+    );
+    return outcome.result;
   } catch (err: any) {
     queueLog.warn(
       { txHash: data.txHash, err: err.message },
-      'Failed to enqueue alert. Falling back to direct dispatch...',
+      'Failed to enqueue or journal alert. Falling back to direct dispatch...',
     );
     return processAlertDispatch(data);
   }

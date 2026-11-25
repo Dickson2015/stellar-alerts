@@ -1,5 +1,13 @@
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { MerkleAuditService } from './merkle.service';
 import { MerkleProof } from '@stellar-alerts/shared';
+import { NotFoundError, zodValidationError } from '../../lib/errors';
+import { onChainNotaryService } from './onchain-notary.service';
+
+const auditProofParamsSchema = z.object({
+  id: z.string().min(1),
+});
 
 export class AuditHttpError extends Error {
   public readonly statusCode: number;
@@ -129,7 +137,24 @@ export class AuditController {
     }
   }
 
+  /**
+   * GET /audit/:id/proof — returns a verifiable RFC 6962 inclusion proof for
+   * the audit log, the Merkle root and the Stellar transaction that anchored
+   * it (null until the hourly anchor job has published the root).
+   */
+  async getProof(request: FastifyRequest, reply: FastifyReply) {
+    const parsed = auditProofParamsSchema.safeParse(request.params);
+    if (!parsed.success) throw zodValidationError(parsed, 'Invalid parameters');
+
+    const proof = await onChainNotaryService.getProof(parsed.data.id);
+    if (!proof) throw new NotFoundError('Audit log not found');
+
+    return reply.header('Cache-Control', 'no-store').send({ success: true, proof });
+  }
+
   private isValidDateFormat(dateString: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(dateString) && !isNaN(Date.parse(`${dateString}T00:00:00Z`));
   }
 }
+
+export const auditController = new AuditController();

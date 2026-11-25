@@ -135,6 +135,7 @@ export function startSupervisor(): WorkerSupervisor {
 
   if (env.SOROBAN_RENT_WORKER_ENABLED === 'true') {
     supervisor.spawn('soroban-rent', 'soroban-rent.worker');
+    supervisor.spawn('soroban-rent-predictor', 'rent-predictor.worker');
   }
 
   if (env.SOROBAN_INDEXER_WORKER_ENABLED === 'true') {

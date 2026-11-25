@@ -21,6 +21,8 @@ scripts/
 !scripts/verify-migrations.test.ts
 !scripts/verify-migrations-shadow.ts
 !scripts/verify-migrations-shadow.test.ts
+!scripts/check-zero-downtime-migrations.ts
+!scripts/check-zero-downtime-migrations.test.ts
 !scripts/security-audit.ts
 !scripts/release-report.ts
 !scripts/release-report.test.ts

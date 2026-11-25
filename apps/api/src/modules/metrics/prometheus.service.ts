@@ -189,6 +189,12 @@ export class PrometheusMetricsService {
     'Number of active worker instances/pods',
   );
 
+  // Per-worker concurrency gauge (driven by the adaptive worker scaler)
+  private workerConcurrencyGauge = new Gauge(
+    'stellar_alerts_worker_concurrency',
+    'Current worker concurrency (jobs processed in parallel) by worker pool',
+  );
+
   // SLO success rate gauge (delivery success % per provider, last 1h window)
   private deliverySloGauge = new Gauge(
     'stellar_alerts_delivery_slo_success_rate',
@@ -256,6 +262,14 @@ export class PrometheusMetricsService {
   }
 
   /**
+   * Update a worker pool's current concurrency.
+   */
+  setWorkerConcurrency(worker: string, concurrency: number): void {
+    if (!Number.isFinite(concurrency)) return;
+    this.workerConcurrencyGauge.set(`worker="${worker}"`, concurrency);
+  }
+
+  /**
    * Update delivery SLO success rate for a provider (0-100).
    * Typically computed over a 1-hour sliding window.
    */
@@ -301,6 +315,8 @@ export class PrometheusMetricsService {
       '',
       this.activeWorkersGauge.render().join('\n'),
       '',
+      this.workerConcurrencyGauge.render().join('\n'),
+      '',
       this.deliverySloGauge.render().join('\n'),
       '',
       this.oracleStalenessHistogram.render().join('\n'),
@@ -322,6 +338,7 @@ export class PrometheusMetricsService {
     this.deliveryCounterByOutcome.reset();
     this.queueDepthGauge.reset();
     this.activeWorkersGauge.reset();
+    this.workerConcurrencyGauge.reset();
     this.deliverySloGauge.reset();
     this.oracleStalenessHistogram.reset();
     this.oracleDivergenceGauge.reset();

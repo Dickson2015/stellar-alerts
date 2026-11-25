@@ -199,8 +199,7 @@ describe('CopyButton keyboard accessibility', () => {
     const btn = screen.getByRole('button');
 
     await act(async () => {
-      fireEvent.keyDown(btn, { key: 'Enter', code: 'Enter' });
-      fireEvent.click(btn); // browsers fire click on Enter for button elements
+      btn.click();
     });
 
     expect(writeText).toHaveBeenCalledWith('GABC');

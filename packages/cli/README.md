@@ -60,6 +60,31 @@ Delivery is **at-least-once**. The CLI never advances the cursor past a payment 
 - `cursor` is an optional query parameter. A server that ignores it still works: the CLI drops the replayed payments, and a replay older than the id window shows up as duplicate output rather than a missed payment.
 - To use cursors, a server should resume *after* the given `pagingToken`/`id` and may add `pagingToken` to each record.
 
+### `tail`
+
+Tails live payments and Soroban contract events with ephemeral filters — no
+database rule needs to be saved first. Matching values are highlighted in the
+pretty output; `--output ndjson` emits one JSON object per line on stdout so it
+can be piped into `jq` or a local script (session statistics go to stderr).
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `-w, --wallet <address>` | — | Wallet address or id. Resolves to a wallet id for server-side filtering when registered. |
+| `-c, --contract <id>` | — | Soroban contract id (also enables the Soroban event stream) |
+| `-a, --asset <code>` | — | Asset code (also enables the Soroban event stream) |
+| `-m, --min-amount <number>` | — | Minimum event amount, inclusive |
+| `-o, --output <format>` | `pretty` | `pretty` for colorized lines or `ndjson` for piping |
+| `-t, --token <token>` | — | API token |
+
+Filters are ANDed and are always re-checked client-side, so servers that ignore
+query parameters still produce correct output. `Ctrl+C` (or `SIGTERM`) prints a
+session summary with duration, events inspected, matches, and matches/second;
+a second signal exits immediately with code `130`.
+
+```bash
+stellar-alerts-cli tail --wallet GABC... --asset USDC --min-amount 10 --output ndjson | jq .
+```
+
 ### `health`
 
 Checks API reachability.

@@ -1,26 +1,29 @@
+import type { ClaimPredicate } from '@stellar-alerts/shared';
+import {
+  processClaimableBalance,
+  type ClaimableBalanceAlert,
+  type ClaimableBalanceEntry as WorkerClaimableBalanceEntry,
+} from '../workers/claimable-balance.worker';
+
+export type { ClaimableBalanceAlert };
+
 export interface Claimant {
   destination: string;
-  predicate: Record<string, unknown>;
+  predicate: ClaimPredicate;
 }
 
-export interface ClaimableBalanceEntry {
-  id: string;
-  asset: string;
-  amount: string;
-  sponsor: string;
+export interface ClaimableBalanceEntry
+  extends Omit<WorkerClaimableBalanceEntry, 'createdAt' | 'claimants'> {
   claimants: Claimant[];
-  lastModifiedLedger: number;
+  /** Ledger entry creation time; anchors `rel_before`. Defaults to now. */
+  createdAt?: Date | string;
 }
 
-export interface ClaimableBalanceAlert {
-  balanceId: string;
-  claimantAddress: string;
-  asset: string;
-  amount: string;
-  type: 'CREATED' | 'EXPIRING_SOON' | 'EXPIRED';
-  message: string;
-}
-
+/**
+ * Thin stateful wrapper around the pure predicate engine in
+ * `workers/claimable-balance.worker.ts`. Keeps the monitored-address set for
+ * callers (e.g. the trustline sentinel) that process balances one at a time.
+ */
 export class ClaimableBalanceWatcher {
   private monitoredAddresses: Set<string> = new Set();
 
@@ -32,51 +35,26 @@ export class ClaimableBalanceWatcher {
     this.monitoredAddresses.add(address);
   }
 
-  public processBalance(balance: ClaimableBalanceEntry, currentLedger: number): ClaimableBalanceAlert[] {
-    const alerts: ClaimableBalanceAlert[] = [];
+  public addMonitoredClaimant(claimant: Claimant): void {
+    this.monitoredAddresses.add(claimant.destination);
+  }
 
-    for (const claimant of balance.claimants) {
-      if (!this.monitoredAddresses.has(claimant.destination)) {
-        continue;
-      }
+  public getMonitoredAddresses(): string[] {
+    return Array.from(this.monitoredAddresses);
+  }
 
-      // Check if newly created
-      alerts.push({
-        balanceId: balance.id,
-        claimantAddress: claimant.destination,
-        asset: balance.asset,
-        amount: balance.amount,
-        type: 'CREATED',
-        message: `New claimable balance ${balance.id} created for ${claimant.destination}`,
-      });
-
-      // Check predicate expiration
-      if (claimant.predicate.absBeforeLedger && typeof claimant.predicate.absBeforeLedger === 'number') {
-        const expiresAtLedger = claimant.predicate.absBeforeLedger;
-        const ledgersRemaining = expiresAtLedger - currentLedger;
-
-        if (ledgersRemaining <= 0) {
-          alerts.push({
-            balanceId: balance.id,
-            claimantAddress: claimant.destination,
-            asset: balance.asset,
-            amount: balance.amount,
-            type: 'EXPIRED',
-            message: `Claimable balance ${balance.id} expired at ledger ${expiresAtLedger}`,
-          });
-        } else if (ledgersRemaining <= 100) {
-          alerts.push({
-            balanceId: balance.id,
-            claimantAddress: claimant.destination,
-            asset: balance.asset,
-            amount: balance.amount,
-            type: 'EXPIRING_SOON',
-            message: `Claimable balance ${balance.id} expires in ${ledgersRemaining} ledgers`,
-          });
-        }
-      }
-    }
-
-    return alerts;
+  public processBalance(
+    balance: ClaimableBalanceEntry,
+    now: Date | string | number = Date.now(),
+  ): ClaimableBalanceAlert[] {
+    return processClaimableBalance(
+      {
+        ...balance,
+        claimants: balance.claimants,
+        createdAt: balance.createdAt ?? new Date(now),
+      },
+      this.monitoredAddresses,
+      { now },
+    );
   }
 }

@@ -260,3 +260,51 @@ describe('PaymentTable CSV/JSON export (issue #582)', () => {
     expect(anchorClicks).toHaveLength(0);
   });
 });
+
+describe('PaymentTable address-poisoning quarantine (issue #994)', () => {
+  it('quarantines suspected poisoning transactions with a prominent PHISHING / ADDRESS POISONING WARNING banner and blocks copying the sender address', () => {
+    const poisonedPayment = makePayment({
+      id: 'pay-poison',
+      txHash: 'poisonhash123456',
+      fromAddress: 'GDQPXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX4BVI',
+      amount: 0.00001,
+      asset: 'XLM',
+      isQuarantined: true,
+      securityWarning: {
+        type: 'ADDRESS_POISONING',
+        banner: 'PHISHING / ADDRESS POISONING WARNING',
+        message: 'DO NOT copy the sender address from your transaction history.',
+        spoofedCounterparty: 'GDQP2KPQGKIHYJGXNUIYOMHARUARCA7DJT5FO2FFOOKY3B2WSFMG4BVI',
+        matchedPrefix: 'GDQP',
+        matchedSuffix: '4BVI',
+      },
+    });
+    const normalPayment = makePayment({
+      id: 'pay-normal',
+      txHash: 'normalhash123456',
+      amount: 50,
+    });
+
+    const { container } = render(
+      <PaymentTable payments={[poisonedPayment, normalPayment]} isLoading={false} />,
+    );
+
+    const banner = screen.getByTestId('address-poisoning-banner');
+    expect(banner).toHaveAttribute('role', 'alert');
+    expect(banner).toHaveTextContent('PHISHING / ADDRESS POISONING WARNING');
+    expect(banner).toHaveTextContent(/Do not copy the sender address/i);
+
+    const quarantinedRows = container.querySelectorAll('tr[data-quarantined="true"]');
+    expect(quarantinedRows).toHaveLength(1);
+    expect(screen.getByText('(Copy blocked)')).toBeInTheDocument();
+
+    // Only the normal payment has a "Copy sender address" button
+    const copySenderButtons = screen.getAllByRole('button', { name: /copy sender address/i });
+    expect(copySenderButtons).toHaveLength(1);
+  });
+
+  it('does not render the phishing warning banner when no payments are quarantined', () => {
+    render(<PaymentTable payments={[makePayment()]} isLoading={false} />);
+    expect(screen.queryByTestId('address-poisoning-banner')).not.toBeInTheDocument();
+  });
+});

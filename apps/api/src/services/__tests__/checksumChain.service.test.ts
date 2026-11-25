@@ -28,6 +28,7 @@ import {
   computeChainHash,
   appendPaymentChecksum,
   verifyChain,
+  verifyChainInBatches,
   computeDailyMerkleRoot,
   verifyPaymentInDailyRoot,
   type ChainablePayment,
@@ -193,6 +194,51 @@ describe('checksumChain.service', () => {
 
       expect(result.valid).toBe(false);
       expect(result.brokenAtSequence).toBe(2);
+    });
+  });
+
+  describe('verifyChainInBatches', () => {
+    function chainRows(count: number) {
+      const rows: any[] = [];
+      let previousHash = GENESIS_HASH;
+      for (let i = 1; i <= count; i++) {
+        const payloadHash = computePayloadHash(payment({ id: `p${i}`, txHash: `t${i}` }));
+        const chainHash = computeChainHash(previousHash, payloadHash);
+        rows.push({ id: `c${i}`, sequence: i, payloadHash, previousHash, chainHash });
+        previousHash = chainHash;
+      }
+      return rows;
+    }
+
+    function mockPagedFindMany(rows: any[]) {
+      (prisma.paymentChecksum.findMany as any).mockImplementation(async ({ where, take }: any) => {
+        const after = where?.sequence?.gt ?? 0;
+        return rows.filter((row) => row.sequence > after).slice(0, take);
+      });
+    }
+
+    it('walks a multi-page chain without loading it all at once', async () => {
+      mockPagedFindMany(chainRows(7));
+
+      const result = await verifyChainInBatches({ batchSize: 3 });
+
+      expect(result.valid).toBe(true);
+      expect(result.checkedCount).toBe(7);
+      expect(result.pages).toBe(3);
+      expect(result.lastSequence).toBe(7);
+      expect(result.sequenceGaps).toEqual([]);
+    });
+
+    it('reports the exact sequence of a tampered row on a later page', async () => {
+      const rows = chainRows(7);
+      rows[4].payloadHash = 'f'.repeat(64);
+      mockPagedFindMany(rows);
+
+      const result = await verifyChainInBatches({ batchSize: 3 });
+
+      expect(result.valid).toBe(false);
+      expect(result.brokenAtSequence).toBe(5);
+      expect(result.checkedCount).toBe(4);
     });
   });
 

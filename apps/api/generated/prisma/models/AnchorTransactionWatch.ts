@@ -31,6 +31,13 @@ export type AnchorTransactionWatchMinAggregateOutputType = {
   anchorTxId: string | null
   protocol: string | null
   lastKnownStatus: string | null
+  unifiedState: string | null
+  statusChangedAt: Date | null
+  kind: string | null
+  anchorAccount: string | null
+  memo: string | null
+  memoType: string | null
+  stellarTxHash: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -42,6 +49,13 @@ export type AnchorTransactionWatchMaxAggregateOutputType = {
   anchorTxId: string | null
   protocol: string | null
   lastKnownStatus: string | null
+  unifiedState: string | null
+  statusChangedAt: Date | null
+  kind: string | null
+  anchorAccount: string | null
+  memo: string | null
+  memoType: string | null
+  stellarTxHash: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -53,6 +67,13 @@ export type AnchorTransactionWatchCountAggregateOutputType = {
   anchorTxId: number
   protocol: number
   lastKnownStatus: number
+  unifiedState: number
+  statusChangedAt: number
+  kind: number
+  anchorAccount: number
+  memo: number
+  memoType: number
+  stellarTxHash: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -66,6 +87,13 @@ export type AnchorTransactionWatchMinAggregateInputType = {
   anchorTxId?: true
   protocol?: true
   lastKnownStatus?: true
+  unifiedState?: true
+  statusChangedAt?: true
+  kind?: true
+  anchorAccount?: true
+  memo?: true
+  memoType?: true
+  stellarTxHash?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -77,6 +105,13 @@ export type AnchorTransactionWatchMaxAggregateInputType = {
   anchorTxId?: true
   protocol?: true
   lastKnownStatus?: true
+  unifiedState?: true
+  statusChangedAt?: true
+  kind?: true
+  anchorAccount?: true
+  memo?: true
+  memoType?: true
+  stellarTxHash?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -88,6 +123,13 @@ export type AnchorTransactionWatchCountAggregateInputType = {
   anchorTxId?: true
   protocol?: true
   lastKnownStatus?: true
+  unifiedState?: true
+  statusChangedAt?: true
+  kind?: true
+  anchorAccount?: true
+  memo?: true
+  memoType?: true
+  stellarTxHash?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -172,6 +214,13 @@ export type AnchorTransactionWatchGroupByOutputType = {
   anchorTxId: string
   protocol: string
   lastKnownStatus: string | null
+  unifiedState: string | null
+  statusChangedAt: Date | null
+  kind: string | null
+  anchorAccount: string | null
+  memo: string | null
+  memoType: string | null
+  stellarTxHash: string | null
   createdAt: Date
   updatedAt: Date
   _count: AnchorTransactionWatchCountAggregateOutputType | null
@@ -204,9 +253,17 @@ export type AnchorTransactionWatchWhereInput = {
   anchorTxId?: Prisma.StringFilter<"AnchorTransactionWatch"> | string
   protocol?: Prisma.StringFilter<"AnchorTransactionWatch"> | string
   lastKnownStatus?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  unifiedState?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  statusChangedAt?: Prisma.DateTimeNullableFilter<"AnchorTransactionWatch"> | Date | string | null
+  kind?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  anchorAccount?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  memo?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  memoType?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  stellarTxHash?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
   createdAt?: Prisma.DateTimeFilter<"AnchorTransactionWatch"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AnchorTransactionWatch"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  events?: Prisma.AnchorTransactionEventListRelationFilter
 }
 
 export type AnchorTransactionWatchOrderByWithRelationInput = {
@@ -216,9 +273,17 @@ export type AnchorTransactionWatchOrderByWithRelationInput = {
   anchorTxId?: Prisma.SortOrder
   protocol?: Prisma.SortOrder
   lastKnownStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  unifiedState?: Prisma.SortOrderInput | Prisma.SortOrder
+  statusChangedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  kind?: Prisma.SortOrderInput | Prisma.SortOrder
+  anchorAccount?: Prisma.SortOrderInput | Prisma.SortOrder
+  memo?: Prisma.SortOrderInput | Prisma.SortOrder
+  memoType?: Prisma.SortOrderInput | Prisma.SortOrder
+  stellarTxHash?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  events?: Prisma.AnchorTransactionEventOrderByRelationAggregateInput
 }
 
 export type AnchorTransactionWatchWhereUniqueInput = Prisma.AtLeast<{
@@ -232,9 +297,17 @@ export type AnchorTransactionWatchWhereUniqueInput = Prisma.AtLeast<{
   anchorTxId?: Prisma.StringFilter<"AnchorTransactionWatch"> | string
   protocol?: Prisma.StringFilter<"AnchorTransactionWatch"> | string
   lastKnownStatus?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  unifiedState?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  statusChangedAt?: Prisma.DateTimeNullableFilter<"AnchorTransactionWatch"> | Date | string | null
+  kind?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  anchorAccount?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  memo?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  memoType?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  stellarTxHash?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
   createdAt?: Prisma.DateTimeFilter<"AnchorTransactionWatch"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AnchorTransactionWatch"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  events?: Prisma.AnchorTransactionEventListRelationFilter
 }, "id" | "anchorEndpoint_anchorTxId">
 
 export type AnchorTransactionWatchOrderByWithAggregationInput = {
@@ -244,6 +317,13 @@ export type AnchorTransactionWatchOrderByWithAggregationInput = {
   anchorTxId?: Prisma.SortOrder
   protocol?: Prisma.SortOrder
   lastKnownStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  unifiedState?: Prisma.SortOrderInput | Prisma.SortOrder
+  statusChangedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  kind?: Prisma.SortOrderInput | Prisma.SortOrder
+  anchorAccount?: Prisma.SortOrderInput | Prisma.SortOrder
+  memo?: Prisma.SortOrderInput | Prisma.SortOrder
+  memoType?: Prisma.SortOrderInput | Prisma.SortOrder
+  stellarTxHash?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AnchorTransactionWatchCountOrderByAggregateInput
@@ -261,6 +341,13 @@ export type AnchorTransactionWatchScalarWhereWithAggregatesInput = {
   anchorTxId?: Prisma.StringWithAggregatesFilter<"AnchorTransactionWatch"> | string
   protocol?: Prisma.StringWithAggregatesFilter<"AnchorTransactionWatch"> | string
   lastKnownStatus?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
+  unifiedState?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
+  statusChangedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AnchorTransactionWatch"> | Date | string | null
+  kind?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
+  anchorAccount?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
+  memo?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
+  memoType?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
+  stellarTxHash?: Prisma.StringNullableWithAggregatesFilter<"AnchorTransactionWatch"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AnchorTransactionWatch"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AnchorTransactionWatch"> | Date | string
 }
@@ -271,9 +358,17 @@ export type AnchorTransactionWatchCreateInput = {
   anchorTxId: string
   protocol: string
   lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAnchorWatchesInput
+  events?: Prisma.AnchorTransactionEventCreateNestedManyWithoutWatchInput
 }
 
 export type AnchorTransactionWatchUncheckedCreateInput = {
@@ -283,8 +378,16 @@ export type AnchorTransactionWatchUncheckedCreateInput = {
   anchorTxId: string
   protocol: string
   lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  events?: Prisma.AnchorTransactionEventUncheckedCreateNestedManyWithoutWatchInput
 }
 
 export type AnchorTransactionWatchUpdateInput = {
@@ -293,9 +396,17 @@ export type AnchorTransactionWatchUpdateInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAnchorWatchesNestedInput
+  events?: Prisma.AnchorTransactionEventUpdateManyWithoutWatchNestedInput
 }
 
 export type AnchorTransactionWatchUncheckedUpdateInput = {
@@ -305,8 +416,16 @@ export type AnchorTransactionWatchUncheckedUpdateInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  events?: Prisma.AnchorTransactionEventUncheckedUpdateManyWithoutWatchNestedInput
 }
 
 export type AnchorTransactionWatchCreateManyInput = {
@@ -316,6 +435,13 @@ export type AnchorTransactionWatchCreateManyInput = {
   anchorTxId: string
   protocol: string
   lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -326,6 +452,13 @@ export type AnchorTransactionWatchUpdateManyMutationInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -337,6 +470,13 @@ export type AnchorTransactionWatchUncheckedUpdateManyInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -363,6 +503,13 @@ export type AnchorTransactionWatchCountOrderByAggregateInput = {
   anchorTxId?: Prisma.SortOrder
   protocol?: Prisma.SortOrder
   lastKnownStatus?: Prisma.SortOrder
+  unifiedState?: Prisma.SortOrder
+  statusChangedAt?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  anchorAccount?: Prisma.SortOrder
+  memo?: Prisma.SortOrder
+  memoType?: Prisma.SortOrder
+  stellarTxHash?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -374,6 +521,13 @@ export type AnchorTransactionWatchMaxOrderByAggregateInput = {
   anchorTxId?: Prisma.SortOrder
   protocol?: Prisma.SortOrder
   lastKnownStatus?: Prisma.SortOrder
+  unifiedState?: Prisma.SortOrder
+  statusChangedAt?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  anchorAccount?: Prisma.SortOrder
+  memo?: Prisma.SortOrder
+  memoType?: Prisma.SortOrder
+  stellarTxHash?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -385,8 +539,20 @@ export type AnchorTransactionWatchMinOrderByAggregateInput = {
   anchorTxId?: Prisma.SortOrder
   protocol?: Prisma.SortOrder
   lastKnownStatus?: Prisma.SortOrder
+  unifiedState?: Prisma.SortOrder
+  statusChangedAt?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  anchorAccount?: Prisma.SortOrder
+  memo?: Prisma.SortOrder
+  memoType?: Prisma.SortOrder
+  stellarTxHash?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AnchorTransactionWatchScalarRelationFilter = {
+  is?: Prisma.AnchorTransactionWatchWhereInput
+  isNot?: Prisma.AnchorTransactionWatchWhereInput
 }
 
 export type AnchorTransactionWatchCreateNestedManyWithoutUserInput = {
@@ -431,14 +597,36 @@ export type AnchorTransactionWatchUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.AnchorTransactionWatchScalarWhereInput | Prisma.AnchorTransactionWatchScalarWhereInput[]
 }
 
+export type AnchorTransactionWatchCreateNestedOneWithoutEventsInput = {
+  create?: Prisma.XOR<Prisma.AnchorTransactionWatchCreateWithoutEventsInput, Prisma.AnchorTransactionWatchUncheckedCreateWithoutEventsInput>
+  connectOrCreate?: Prisma.AnchorTransactionWatchCreateOrConnectWithoutEventsInput
+  connect?: Prisma.AnchorTransactionWatchWhereUniqueInput
+}
+
+export type AnchorTransactionWatchUpdateOneRequiredWithoutEventsNestedInput = {
+  create?: Prisma.XOR<Prisma.AnchorTransactionWatchCreateWithoutEventsInput, Prisma.AnchorTransactionWatchUncheckedCreateWithoutEventsInput>
+  connectOrCreate?: Prisma.AnchorTransactionWatchCreateOrConnectWithoutEventsInput
+  upsert?: Prisma.AnchorTransactionWatchUpsertWithoutEventsInput
+  connect?: Prisma.AnchorTransactionWatchWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AnchorTransactionWatchUpdateToOneWithWhereWithoutEventsInput, Prisma.AnchorTransactionWatchUpdateWithoutEventsInput>, Prisma.AnchorTransactionWatchUncheckedUpdateWithoutEventsInput>
+}
+
 export type AnchorTransactionWatchCreateWithoutUserInput = {
   id?: string
   anchorEndpoint: string
   anchorTxId: string
   protocol: string
   lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  events?: Prisma.AnchorTransactionEventCreateNestedManyWithoutWatchInput
 }
 
 export type AnchorTransactionWatchUncheckedCreateWithoutUserInput = {
@@ -447,8 +635,16 @@ export type AnchorTransactionWatchUncheckedCreateWithoutUserInput = {
   anchorTxId: string
   protocol: string
   lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  events?: Prisma.AnchorTransactionEventUncheckedCreateNestedManyWithoutWatchInput
 }
 
 export type AnchorTransactionWatchCreateOrConnectWithoutUserInput = {
@@ -487,8 +683,103 @@ export type AnchorTransactionWatchScalarWhereInput = {
   anchorTxId?: Prisma.StringFilter<"AnchorTransactionWatch"> | string
   protocol?: Prisma.StringFilter<"AnchorTransactionWatch"> | string
   lastKnownStatus?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  unifiedState?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  statusChangedAt?: Prisma.DateTimeNullableFilter<"AnchorTransactionWatch"> | Date | string | null
+  kind?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  anchorAccount?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  memo?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  memoType?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
+  stellarTxHash?: Prisma.StringNullableFilter<"AnchorTransactionWatch"> | string | null
   createdAt?: Prisma.DateTimeFilter<"AnchorTransactionWatch"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AnchorTransactionWatch"> | Date | string
+}
+
+export type AnchorTransactionWatchCreateWithoutEventsInput = {
+  id?: string
+  anchorEndpoint: string
+  anchorTxId: string
+  protocol: string
+  lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutAnchorWatchesInput
+}
+
+export type AnchorTransactionWatchUncheckedCreateWithoutEventsInput = {
+  id?: string
+  userId: string
+  anchorEndpoint: string
+  anchorTxId: string
+  protocol: string
+  lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AnchorTransactionWatchCreateOrConnectWithoutEventsInput = {
+  where: Prisma.AnchorTransactionWatchWhereUniqueInput
+  create: Prisma.XOR<Prisma.AnchorTransactionWatchCreateWithoutEventsInput, Prisma.AnchorTransactionWatchUncheckedCreateWithoutEventsInput>
+}
+
+export type AnchorTransactionWatchUpsertWithoutEventsInput = {
+  update: Prisma.XOR<Prisma.AnchorTransactionWatchUpdateWithoutEventsInput, Prisma.AnchorTransactionWatchUncheckedUpdateWithoutEventsInput>
+  create: Prisma.XOR<Prisma.AnchorTransactionWatchCreateWithoutEventsInput, Prisma.AnchorTransactionWatchUncheckedCreateWithoutEventsInput>
+  where?: Prisma.AnchorTransactionWatchWhereInput
+}
+
+export type AnchorTransactionWatchUpdateToOneWithWhereWithoutEventsInput = {
+  where?: Prisma.AnchorTransactionWatchWhereInput
+  data: Prisma.XOR<Prisma.AnchorTransactionWatchUpdateWithoutEventsInput, Prisma.AnchorTransactionWatchUncheckedUpdateWithoutEventsInput>
+}
+
+export type AnchorTransactionWatchUpdateWithoutEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  anchorEndpoint?: Prisma.StringFieldUpdateOperationsInput | string
+  anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutAnchorWatchesNestedInput
+}
+
+export type AnchorTransactionWatchUncheckedUpdateWithoutEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  anchorEndpoint?: Prisma.StringFieldUpdateOperationsInput | string
+  anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type AnchorTransactionWatchCreateManyUserInput = {
@@ -497,6 +788,13 @@ export type AnchorTransactionWatchCreateManyUserInput = {
   anchorTxId: string
   protocol: string
   lastKnownStatus?: string | null
+  unifiedState?: string | null
+  statusChangedAt?: Date | string | null
+  kind?: string | null
+  anchorAccount?: string | null
+  memo?: string | null
+  memoType?: string | null
+  stellarTxHash?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -507,8 +805,16 @@ export type AnchorTransactionWatchUpdateWithoutUserInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  events?: Prisma.AnchorTransactionEventUpdateManyWithoutWatchNestedInput
 }
 
 export type AnchorTransactionWatchUncheckedUpdateWithoutUserInput = {
@@ -517,8 +823,16 @@ export type AnchorTransactionWatchUncheckedUpdateWithoutUserInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  events?: Prisma.AnchorTransactionEventUncheckedUpdateManyWithoutWatchNestedInput
 }
 
 export type AnchorTransactionWatchUncheckedUpdateManyWithoutUserInput = {
@@ -527,10 +841,46 @@ export type AnchorTransactionWatchUncheckedUpdateManyWithoutUserInput = {
   anchorTxId?: Prisma.StringFieldUpdateOperationsInput | string
   protocol?: Prisma.StringFieldUpdateOperationsInput | string
   lastKnownStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unifiedState?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  statusChangedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  anchorAccount?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memo?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  memoType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stellarTxHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
+
+/**
+ * Count Type AnchorTransactionWatchCountOutputType
+ */
+
+export type AnchorTransactionWatchCountOutputType = {
+  events: number
+}
+
+export type AnchorTransactionWatchCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  events?: boolean | AnchorTransactionWatchCountOutputTypeCountEventsArgs
+}
+
+/**
+ * AnchorTransactionWatchCountOutputType without action
+ */
+export type AnchorTransactionWatchCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AnchorTransactionWatchCountOutputType
+   */
+  select?: Prisma.AnchorTransactionWatchCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * AnchorTransactionWatchCountOutputType without action
+ */
+export type AnchorTransactionWatchCountOutputTypeCountEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AnchorTransactionEventWhereInput
+}
 
 
 export type AnchorTransactionWatchSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -540,9 +890,18 @@ export type AnchorTransactionWatchSelect<ExtArgs extends runtime.Types.Extension
   anchorTxId?: boolean
   protocol?: boolean
   lastKnownStatus?: boolean
+  unifiedState?: boolean
+  statusChangedAt?: boolean
+  kind?: boolean
+  anchorAccount?: boolean
+  memo?: boolean
+  memoType?: boolean
+  stellarTxHash?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  events?: boolean | Prisma.AnchorTransactionWatch$eventsArgs<ExtArgs>
+  _count?: boolean | Prisma.AnchorTransactionWatchCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["anchorTransactionWatch"]>
 
 export type AnchorTransactionWatchSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -552,6 +911,13 @@ export type AnchorTransactionWatchSelectCreateManyAndReturn<ExtArgs extends runt
   anchorTxId?: boolean
   protocol?: boolean
   lastKnownStatus?: boolean
+  unifiedState?: boolean
+  statusChangedAt?: boolean
+  kind?: boolean
+  anchorAccount?: boolean
+  memo?: boolean
+  memoType?: boolean
+  stellarTxHash?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -564,6 +930,13 @@ export type AnchorTransactionWatchSelectUpdateManyAndReturn<ExtArgs extends runt
   anchorTxId?: boolean
   protocol?: boolean
   lastKnownStatus?: boolean
+  unifiedState?: boolean
+  statusChangedAt?: boolean
+  kind?: boolean
+  anchorAccount?: boolean
+  memo?: boolean
+  memoType?: boolean
+  stellarTxHash?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -576,13 +949,22 @@ export type AnchorTransactionWatchSelectScalar = {
   anchorTxId?: boolean
   protocol?: boolean
   lastKnownStatus?: boolean
+  unifiedState?: boolean
+  statusChangedAt?: boolean
+  kind?: boolean
+  anchorAccount?: boolean
+  memo?: boolean
+  memoType?: boolean
+  stellarTxHash?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AnchorTransactionWatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "anchorEndpoint" | "anchorTxId" | "protocol" | "lastKnownStatus" | "createdAt" | "updatedAt", ExtArgs["result"]["anchorTransactionWatch"]>
+export type AnchorTransactionWatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "anchorEndpoint" | "anchorTxId" | "protocol" | "lastKnownStatus" | "unifiedState" | "statusChangedAt" | "kind" | "anchorAccount" | "memo" | "memoType" | "stellarTxHash" | "createdAt" | "updatedAt", ExtArgs["result"]["anchorTransactionWatch"]>
 export type AnchorTransactionWatchInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  events?: boolean | Prisma.AnchorTransactionWatch$eventsArgs<ExtArgs>
+  _count?: boolean | Prisma.AnchorTransactionWatchCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AnchorTransactionWatchIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -595,6 +977,7 @@ export type $AnchorTransactionWatchPayload<ExtArgs extends runtime.Types.Extensi
   name: "AnchorTransactionWatch"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
+    events: Prisma.$AnchorTransactionEventPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -603,6 +986,13 @@ export type $AnchorTransactionWatchPayload<ExtArgs extends runtime.Types.Extensi
     anchorTxId: string
     protocol: string
     lastKnownStatus: string | null
+    unifiedState: string | null
+    statusChangedAt: Date | null
+    kind: string | null
+    anchorAccount: string | null
+    memo: string | null
+    memoType: string | null
+    stellarTxHash: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["anchorTransactionWatch"]>
@@ -1000,6 +1390,7 @@ readonly fields: AnchorTransactionWatchFieldRefs;
 export interface Prisma__AnchorTransactionWatchClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  events<T extends Prisma.AnchorTransactionWatch$eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AnchorTransactionWatch$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnchorTransactionEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1035,6 +1426,13 @@ export interface AnchorTransactionWatchFieldRefs {
   readonly anchorTxId: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
   readonly protocol: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
   readonly lastKnownStatus: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
+  readonly unifiedState: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
+  readonly statusChangedAt: Prisma.FieldRef<"AnchorTransactionWatch", 'DateTime'>
+  readonly kind: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
+  readonly anchorAccount: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
+  readonly memo: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
+  readonly memoType: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
+  readonly stellarTxHash: Prisma.FieldRef<"AnchorTransactionWatch", 'String'>
   readonly createdAt: Prisma.FieldRef<"AnchorTransactionWatch", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AnchorTransactionWatch", 'DateTime'>
 }
@@ -1435,6 +1833,30 @@ export type AnchorTransactionWatchDeleteManyArgs<ExtArgs extends runtime.Types.E
    * Limit how many AnchorTransactionWatches to delete.
    */
   limit?: number
+}
+
+/**
+ * AnchorTransactionWatch.events
+ */
+export type AnchorTransactionWatch$eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AnchorTransactionEvent
+   */
+  select?: Prisma.AnchorTransactionEventSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AnchorTransactionEvent
+   */
+  omit?: Prisma.AnchorTransactionEventOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AnchorTransactionEventInclude<ExtArgs> | null
+  where?: Prisma.AnchorTransactionEventWhereInput
+  orderBy?: Prisma.AnchorTransactionEventOrderByWithRelationInput | Prisma.AnchorTransactionEventOrderByWithRelationInput[]
+  cursor?: Prisma.AnchorTransactionEventWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AnchorTransactionEventScalarFieldEnum | Prisma.AnchorTransactionEventScalarFieldEnum[]
 }
 
 /**

@@ -6,6 +6,7 @@ import { generateLedgerStatementPdf } from '../../utils/pdf-generator';
 import { generateTransactionReceiptPdf } from '../../utils/receipt-generator';
 import { prismaRead, prisma } from '../../lib/prisma';
 import { paymentsService } from './payments.service';
+import { addressPoisoningDetector } from '../security/address-poisoning.service';
 import { CursorError, cursorSchema, limitSchema } from '../../utils/pagination';
 import { AuthenticationError, AuthorizationError, NotFoundError, ValidationError, zodValidationError } from '../../lib/errors';
 
@@ -72,10 +73,17 @@ export class PaymentsController {
           cursor: parsed.data.cursor,
         },
       );
-      const payments: PaymentDTO[] = result.items.map((payment) => ({
-        ...payment,
-        amount: payment.amount.toString(),
-      }));
+      const quarantinedMap = await addressPoisoningDetector.getQuarantinedTransactions(
+        result.items.map((payment) => payment.txHash),
+      );
+      const payments: PaymentDTO[] = result.items.map((payment) => {
+        const securityWarning = quarantinedMap.get(payment.txHash);
+        return {
+          ...payment,
+          amount: payment.amount.toString(),
+          ...(securityWarning ? { isQuarantined: true, securityWarning } : {}),
+        };
+      });
       return reply.send({ success: true, payments, pagination: result.pagination });
     } catch (err) {
       if (err instanceof CursorError) {

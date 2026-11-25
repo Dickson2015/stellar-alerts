@@ -283,11 +283,11 @@ export type PaymentOrderByWithRelationInput = {
 
 export type PaymentWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  txHash?: string
   AND?: Prisma.PaymentWhereInput | Prisma.PaymentWhereInput[]
   OR?: Prisma.PaymentWhereInput[]
   NOT?: Prisma.PaymentWhereInput | Prisma.PaymentWhereInput[]
   walletId?: Prisma.StringFilter<"Payment"> | string
+  txHash?: Prisma.StringFilter<"Payment"> | string
   fromAddress?: Prisma.StringFilter<"Payment"> | string
   amount?: Prisma.DecimalFilter<"Payment"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   asset?: Prisma.StringFilter<"Payment"> | string
@@ -300,7 +300,7 @@ export type PaymentWhereUniqueInput = Prisma.AtLeast<{
   deadLetters?: Prisma.DeadLetterListRelationFilter
   deliveries?: Prisma.NotificationDeliveryListRelationFilter
   checksum?: Prisma.XOR<Prisma.PaymentChecksumNullableScalarRelationFilter, Prisma.PaymentChecksumWhereInput> | null
-}, "id" | "txHash">
+}, "id">
 
 export type PaymentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder

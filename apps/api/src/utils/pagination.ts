@@ -12,6 +12,58 @@
 
 import { z } from 'zod';
 
+export const MAX_PAGE_SIZE = 100;
+
+export const paginationMetaSchema = z.object({
+  total: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1).max(MAX_PAGE_SIZE),
+  totalPages: z.number().int().nonnegative(),
+  hasNextPage: z.boolean(),
+  hasPrevPage: z.boolean(),
+});
+
+export const paginatedResponseSchema = z.object({
+  data: z.array(z.unknown()),
+  meta: paginationMetaSchema,
+});
+
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: z.infer<typeof paginationMetaSchema>;
+}
+
+/**
+ * Builds the standard page-number pagination envelope.
+ * The supplied data should already contain the records for the normalized page.
+ */
+export function buildPaginatedResponse<T>(
+  data: T[],
+  total: number,
+  page: number,
+  limit: number,
+): PaginatedResult<T> {
+  const parsedTotal = z.number().int().nonnegative().parse(total);
+  const normalizedPage = Math.max(1, Math.floor(z.number().finite().parse(page)));
+  const normalizedLimit = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Math.floor(z.number().finite().parse(limit))),
+  );
+  const totalPages = Math.ceil(parsedTotal / normalizedLimit);
+
+  return {
+    data,
+    meta: {
+      total: parsedTotal,
+      page: normalizedPage,
+      limit: normalizedLimit,
+      totalPages,
+      hasNextPage: normalizedPage < totalPages,
+      hasPrevPage: normalizedPage > 1,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Limit schema — reused across all paginated routes
 // ---------------------------------------------------------------------------

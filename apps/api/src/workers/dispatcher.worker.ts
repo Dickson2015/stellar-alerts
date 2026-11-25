@@ -80,23 +80,40 @@ export type WebhookTransportFn = (
   pinnedTarget?: PinnedWebhookTarget,
 ) => Promise<{ status: number; body?: string }>;
 
+/**
+ * Produces signature headers for the exact body that will be sent. Called
+ * AFTER masking so the signature covers the masked bytes.
+ */
+export type WebhookSignerFn = (
+  webhookId: string,
+  body: string,
+) => Promise<Record<string, string>>;
+
+const SIGNATURE_HEADER_NAMES = ["x-stellar-signature", "x-signature-secondary"];
+
 export class DispatcherWorker {
+  private signer?: WebhookSignerFn;
   private circuitBreaker: RedisCircuitBreaker;
   private workers: Map<QueueLane, Worker<WebhookDispatchJobData>> = new Map();
   private transport: WebhookTransportFn;
   private ssrfFilter: SsrfFilter;
   private laneManager: QueueLaneManager;
+  private scaler: WorkerScaler | null = null;
 
   constructor(
     circuitBreaker?: RedisCircuitBreaker,
     transport?: WebhookTransportFn,
     filter?: SsrfFilter,
     laneManager?: QueueLaneManager,
+    signer?: WebhookSignerFn,
+    customMatrixDispatcher?: MatrixDispatcher,
   ) {
+    this.signer = signer;
     this.circuitBreaker = circuitBreaker || new RedisCircuitBreaker();
     this.transport = transport || this.defaultTransport.bind(this);
     this.ssrfFilter = filter || ssrfFilter;
     this.laneManager = laneManager || new QueueLaneManager();
+    this.matrixDispatcher = customMatrixDispatcher || matrixDispatcher;
   }
 
   private async defaultTransport(
@@ -194,6 +211,8 @@ export class DispatcherWorker {
       ruleId,
       alertData,
       severity,
+      maskingPolicy,
+      matrixConfig,
     } = job.data;
     const lane: QueueLane = job.data.lane ?? resolveLaneForAlert(job.data);
 
@@ -275,13 +294,14 @@ export class DispatcherWorker {
       };
     }
 
+    const targetUrl = matrixConfig ? matrixConfig.homeserverUrl : url;
     let pinnedTarget: PinnedWebhookTarget;
     try {
-      pinnedTarget = await this.ssrfFilter.validateAndResolve(url);
+      pinnedTarget = await this.ssrfFilter.validateAndResolve(targetUrl);
     } catch (err: any) {
       const statusCode = err instanceof SsrfBlockedError ? err.statusCode : 400;
       log.error(
-        { webhookId, url, reason: err.reason ?? err.message, statusCode, lane },
+        { webhookId, url: targetUrl, reason: err.reason ?? err.message, statusCode, lane },
         "[SECURITY_AUDIT] Blocked webhook dispatch due to SSRF egress policy",
       );
       return {
@@ -420,7 +440,11 @@ export class DispatcherWorker {
       );
     }
 
+    this.startAutoscaler(baseQueueName);
+
     registerRedisCleanupTask(async () => {
+      this.scaler?.stop();
+      this.scaler = null;
       await Promise.all(
         Array.from(this.workers.values()).map((w) => w.close()),
       );
@@ -428,6 +452,44 @@ export class DispatcherWorker {
     });
 
     return this.workers;
+  }
+
+  /**
+   * Attaches the adaptive worker scaler (#915). The scaler watches queue
+   * backlog, event-loop lag and heap pressure, then redistributes the new
+   * total concurrency across lanes in proportion to their configured shares.
+   */
+  private startAutoscaler(baseQueueName: string): void {
+    const lanes = Object.keys(QUEUE_LANE_CONFIGS) as QueueLane[];
+    const baseTotal = lanes.reduce((sum, lane) => sum + QUEUE_LANE_CONFIGS[lane].concurrency, 0);
+    const queueKeys = lanes.map(
+      (lane) => `bull:${this.laneManager.getQueueName(lane, baseQueueName)}:wait`,
+    );
+
+    this.scaler = new WorkerScaler(redis as any, baseTotal, {
+      workerName: "webhook-dispatcher",
+      queueKeys,
+    });
+
+    this.scaler.on("scale", (_previous, next, direction, reason) => {
+      let assigned = 0;
+      lanes.forEach((lane, index) => {
+        const worker = this.workers.get(lane);
+        if (!worker) return;
+        const share =
+          index === lanes.length - 1
+            ? Math.max(1, next - assigned)
+            : Math.max(1, Math.round((next * QUEUE_LANE_CONFIGS[lane].concurrency) / baseTotal));
+        assigned += share;
+        worker.concurrency = share;
+      });
+      log.info(
+        { totalConcurrency: next, direction, reason },
+        "Adaptive worker scaler adjusted dispatcher lane concurrency",
+      );
+    });
+
+    this.scaler.start();
   }
 
   /** Returns the worker for a specific lane (if started). */
@@ -440,6 +502,11 @@ export class DispatcherWorker {
   /** Returns the lane manager used by this worker (for metrics/integration tests). */
   public getLaneManager(): QueueLaneManager {
     return this.laneManager;
+  }
+
+  /** Returns the adaptive scaler attached to this dispatcher (if started). */
+  public getWorkerScaler(): WorkerScaler | null {
+    return this.scaler;
   }
 
   /** Returns fair scheduling statistics */

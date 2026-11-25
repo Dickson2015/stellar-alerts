@@ -4,6 +4,7 @@ import {
   decodeCursor,
   buildCursorWhere,
   buildCursorPage,
+  buildPaginatedResponse,
   CursorError,
   cursorPaginationQuerySchema,
   limitSchema,
@@ -155,6 +156,59 @@ describe('buildCursorPage', () => {
   it('includes the limit in the pagination envelope', () => {
     const result = buildCursorPage(items, 10);
     expect(result.pagination.limit).toBe(10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildPaginatedResponse
+// ---------------------------------------------------------------------------
+
+describe('buildPaginatedResponse', () => {
+  it('returns zero pages and no navigation for an empty result set', () => {
+    expect(buildPaginatedResponse([], 0, 1, 20)).toEqual({
+      data: [],
+      meta: {
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
+    });
+  });
+
+  it('computes page metadata correctly at exact page boundaries', () => {
+    expect(buildPaginatedResponse(['a', 'b'], 40, 2, 20).meta).toEqual({
+      total: 40,
+      page: 2,
+      limit: 20,
+      totalPages: 2,
+      hasNextPage: false,
+      hasPrevPage: true,
+    });
+  });
+
+  it('does not report a next page for an out-of-range page', () => {
+    expect(buildPaginatedResponse([], 21, 4, 10).meta).toEqual({
+      total: 21,
+      page: 4,
+      limit: 10,
+      totalPages: 3,
+      hasNextPage: false,
+      hasPrevPage: true,
+    });
+  });
+
+  it('clamps the page to at least 1 and the limit to at most 100', () => {
+    expect(buildPaginatedResponse([], 250, 0, 500).meta).toEqual({
+      total: 250,
+      page: 1,
+      limit: 100,
+      totalPages: 3,
+      hasNextPage: true,
+      hasPrevPage: false,
+    });
   });
 });
 
