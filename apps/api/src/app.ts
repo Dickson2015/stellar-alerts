@@ -38,8 +38,8 @@ import { openApiOptions } from "./openapi.config";
 import { loggerOptions } from "./lib/logger";
 import { env } from "./config/env";
 import metricsPlugin from "./plugins/metrics";
-
 import degradedModePlugin from "./plugins/degraded-mode";
+import responseTimePlugin from "./plugins/response-time";
 import { AppError } from "./lib/errors";
 import { abiRegistryRoutes } from "./modules/soroban/abi-registry.routes";
 import { AdaptiveLoadShedder, loadShedderMiddleware } from "./middleware/load-shedder.middleware";
@@ -190,6 +190,7 @@ export const buildApp = async () => {
   await app.register(prismaPlugin);
   await app.register(metricsPlugin);
   await app.register(degradedModePlugin);
+  await app.register(responseTimePlugin);
 
   // Real-time WebSocket (/ws) + authenticated SSE push endpoint (GET /events)
   if (Object.keys(websocketModule).includes("default") && typeof websocketModule.default === "function") {
