@@ -3,6 +3,7 @@ import { authenticate, requireScopes } from '../../middleware/rbac.middleware';
 import { registerIdempotency } from '../../middleware/idempotency.middleware';
 import { walletsController } from './wallets.controller';
 import { exportController } from './export.controller';
+import { requireWebAuthnStepUp } from '../auth/webauthn.service';
 
 export async function walletsRoutes(app: FastifyInstance) {
   // Unified auth: accepts a developer API key (x-api-key header) OR a session
@@ -48,7 +49,7 @@ export async function walletsRoutes(app: FastifyInstance) {
   );
   app.delete(
     '/wallets/:id',
-    { preHandler: [requireScopes('wallets:write')] },
+    { preHandler: [requireScopes('wallets:write'), requireWebAuthnStepUp('deleting a wallet')] },
     walletsController.deleteWallet.bind(walletsController),
   );
 }

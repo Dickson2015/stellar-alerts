@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const prismaMock = vi.hoisted(() => ({
   payment: {
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
     create: vi.fn(),
     createMany: vi.fn(),
   },
@@ -21,12 +22,26 @@ const prismaMock = vi.hoisted(() => ({
   },
 }));
 
+const deduplicationMock = vi.hoisted(() => ({
+  checkAndMarkDuplicate: vi.fn().mockResolvedValue({
+    isDuplicate: false,
+    wasNewlyAdded: true,
+    bloomFilterHit: false,
+    persistentStoreCheck: false,
+  }),
+  cleanupOldRecords: vi.fn().mockResolvedValue(0),
+}));
+
 vi.mock('../../lib/prisma', () => ({
   prisma: {
     ...prismaMock,
     wallet: { findMany: vi.fn() },
     $transaction: vi.fn((callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock)),
   },
+}));
+
+vi.mock('../../lib/deduplicator', () => ({
+  deduplicationPipeline: deduplicationMock,
 }));
 
 vi.mock('../../lib/stellar', async (importOriginal) => {
@@ -88,6 +103,14 @@ import {
   type StreamConnector,
 } from '../watcher.worker';
 
+function resetPaymentFindFirstMock() {
+  let callCount = 0;
+  vi.mocked(prisma.payment.findFirst).mockImplementation(async () => {
+    callCount += 1;
+    return callCount % 2 === 0 ? ({ id: 'payment-1' } as any) : null;
+  });
+}
+
 const wallet = {
   id: 'wallet-1',
   publicKey: 'GBPDX2DPUHABCGNHXQRNK5A6NGV5R7T244HJ5CXAWSWVRTZR4WMADE72',
@@ -114,6 +137,7 @@ const outageResult = (lastError: string) => ({ records: [], allNodesFailed: true
 describe('Watcher ingestion cursor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPaymentFindFirstMock();
     vi.mocked(prisma.payment.findUnique).mockResolvedValue({ id: 'payment-1' } as any);
     vi.mocked(prisma.payment.createMany).mockResolvedValue({ count: 1 } as any);
   });
@@ -293,6 +317,7 @@ describe('Watcher ingestion cursor', () => {
 describe('handleStreamRecord (live SSE message handler)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPaymentFindFirstMock();
     vi.mocked(prisma.payment.findUnique).mockResolvedValue({ id: 'payment-1' } as any);
     vi.mocked(prisma.payment.createMany).mockResolvedValue({ count: 1 } as any);
   });
@@ -324,6 +349,7 @@ describe('Horizon SSE stream lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    resetPaymentFindFirstMock();
     vi.mocked(prisma.payment.findUnique).mockResolvedValue({ id: 'payment-1' } as any);
     vi.mocked(prisma.payment.createMany).mockResolvedValue({ count: 1 } as any);
     vi.mocked(prisma.ingestionCursor.findUnique).mockResolvedValue({ pagingToken: '4200' } as any);
@@ -582,6 +608,7 @@ describe('processPaymentRecord — persisted AlertRule evaluator', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPaymentFindFirstMock();
     vi.mocked(prisma.payment.findUnique).mockResolvedValue(null as any);
     vi.mocked(prisma.payment.findUnique)
       .mockResolvedValueOnce(null as any)

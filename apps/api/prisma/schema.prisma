@@ -31,6 +31,27 @@ model User {
   telegramSyncCodes      TelegramSyncCode[]
   simulations            TransactionSimulation[]
   apiKeys                ApiKey[]
+  webAuthnCredentials    WebAuthnCredential[]
+}
+
+// ── WebAuthn / FIDO2 Hardware Security Keys (#993) ──────────────────────────
+model WebAuthnCredential {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId  String    @unique
+  nickname      String
+  publicKeyCose String    // Base64URL-encoded COSE public key
+  algorithm     Int       @default(-7) // COSE algorithm (-7=ES256, -8=EdDSA, -257=RS256)
+  signCount     Int       @default(0)
+  transports    String[]  @default([])
+  aaguid        String?
+  backedUp      Boolean   @default(false)
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([credentialId])
 }
 
 // ── Developer API Keys & Granular Bitmask RBAC (#730) ───────────────────────
@@ -378,6 +399,11 @@ model Webhook {
   // period at rotation time; cleared once expired or on the next rotation.
   previousSecretExpiresAt  DateTime?
   payloadTemplate   String?
+  // mTLS client certificate configuration for enterprise webhook subscribers
+  mtlscClientCertCiphertext String?   // AES-256-GCM encrypted client certificate PEM
+  mtlscClientKeyCiphertext   String?   // AES-256-GCM encrypted client private key PEM
+  mtlscCaBundleCiphertext    String?   // Optional CA bundle PEM for custom trust store
+  mtlscKeyVersion            Int        @default(1) // Version rotation support
   isActive          Boolean                  @default(true)
   createdAt         DateTime                 @default(now())
   logs              WebhookLog[]
@@ -1055,5 +1081,40 @@ model ContractAbiRegistry {
 
   @@index([wasmHash])
   @@index([extractedAt])
+}
+
+model TimeSeriesRollup {
+  id            String   @id @default(cuid())
+  asset         String
+  interval      String
+  bucketStart   DateTime
+  count         Int
+  volume        Decimal  @db.Decimal(30, 7)
+  minAmount     Decimal  @db.Decimal(30, 7)
+  maxAmount     Decimal  @db.Decimal(30, 7)
+  uniqueSenders String[] @default([])
+  updatedAt     DateTime @updatedAt
+
+  @@unique([asset, interval, bucketStart])
+  @@index([interval, bucketStart])
+  @@index([asset, interval, bucketStart])
+}
+
+model SorobanRentObservation {
+  id                 String   @id @default(cuid())
+  contractId         String
+  ledgerKey          String
+  durability         String
+  byteSize           Int
+  liveUntilLedgerSeq Int
+  ledgerSeq          Int
+  previousByteSize   Int?
+  previousLedgerSeq  Int?
+  warningTier        String?
+  updatedAt          DateTime @updatedAt
+
+  @@unique([contractId, ledgerKey])
+  @@index([contractId, ledgerSeq])
+  @@index([liveUntilLedgerSeq])
 }
 

@@ -21,6 +21,8 @@ scripts/
 !scripts/verify-migrations.test.ts
 !scripts/verify-migrations-shadow.ts
 !scripts/verify-migrations-shadow.test.ts
+!scripts/check-zero-downtime-migrations.ts
+!scripts/check-zero-downtime-migrations.test.ts
 !scripts/security-audit.ts
 !scripts/release-report.ts
 !scripts/release-report.test.ts
@@ -50,3 +52,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# Python bytecode (SDK tests)
+__pycache__/
+*.pyc

@@ -13,3 +13,13 @@ export {
   isRedisAvailable,
   parseRedisUrl,
 } from './test-infra';
+export {
+  createSeededAccountAddress,
+  createSeededContractId,
+  createSeededContractIds,
+  createSeededKeypair,
+  createSeededKeypairBatch,
+  createSeededKeypairs,
+  deriveSeedHash,
+  type StellarSeed,
+} from './stellar-seeds';

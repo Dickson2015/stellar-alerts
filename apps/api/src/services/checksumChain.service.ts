@@ -173,6 +173,140 @@ export async function verifyChain(): Promise<ChainVerificationResult> {
   return { valid: true, checkedCount, brokenAtSequence: null, reason: null };
 }
 
+export interface PaginatedChainVerificationResult extends ChainVerificationResult {
+  pages: number;
+  lastSequence: number | null;
+  /** Sequence numbers absent between the first and last row (operator signal, not a failure). */
+  sequenceGaps: number[];
+}
+
+/**
+ * Streaming variant of {@link verifyChain} for large chains (100k+ rows).
+ *
+ * Rows are read in `sequence` order, one page at a time, so verification can
+ * walk a chain far larger than memory without loading it all. The walk stops
+ * at the first row whose stored previousHash or chainHash does not recompute,
+ * reporting its exact sequence number.
+ */
+export async function verifyChainInBatches(
+  options: { batchSize?: number; maxRecords?: number; onProgress?: (checked: number) => void } = {},
+): Promise<PaginatedChainVerificationResult> {
+  const batchSize = Math.max(1, options.batchSize ?? 5_000);
+  const maxRecords = options.maxRecords ?? Number.POSITIVE_INFINITY;
+
+  let previousHash = GENESIS_HASH;
+  let checkedCount = 0;
+  let pages = 0;
+  let lastSequence: number | null = null;
+  let cursor: number | null = null;
+  const sequenceGaps: number[] = [];
+
+  while (checkedCount < maxRecords) {
+    const rows: Array<{
+      id: string;
+      sequence: number;
+      payloadHash: string;
+      previousHash: string;
+      chainHash: string;
+    }> = await prisma.paymentChecksum.findMany({
+      where: cursor === null ? undefined : { sequence: { gt: cursor } },
+      orderBy: { sequence: 'asc' },
+      take: Math.min(batchSize, maxRecords - checkedCount),
+    });
+    if (rows.length === 0) break;
+    pages++;
+
+    for (const row of rows) {
+      if (lastSequence !== null && row.sequence > lastSequence + 1) {
+        // Autoincrement sequences can skip after a rolled-back insert, so this
+        // is reported for investigation rather than treated as tampering.
+        for (let missing = lastSequence + 1; missing < row.sequence; missing++) {
+          sequenceGaps.push(missing);
+        }
+      }
+
+      if (row.previousHash !== previousHash) {
+        return {
+          valid: false,
+          checkedCount,
+          brokenAtSequence: row.sequence,
+          reason: `Row ${row.id} (sequence ${row.sequence}) records previousHash "${row.previousHash}" but the chain's actual previous chainHash is "${previousHash}"`,
+          pages,
+          lastSequence,
+          sequenceGaps,
+        };
+      }
+
+      if (computeChainHash(row.previousHash, row.payloadHash) !== row.chainHash) {
+        return {
+          valid: false,
+          checkedCount,
+          brokenAtSequence: row.sequence,
+          reason: `Row ${row.id} (sequence ${row.sequence}) chainHash does not match recomputed value — its payloadHash, previousHash, or stored chainHash has been altered`,
+          pages,
+          lastSequence,
+          sequenceGaps,
+        };
+      }
+
+      previousHash = row.chainHash;
+      lastSequence = row.sequence;
+      checkedCount++;
+      options.onProgress?.(checkedCount);
+    }
+
+    cursor = rows[rows.length - 1]!.sequence;
+  }
+
+  return { valid: true, checkedCount, brokenAtSequence: null, reason: null, pages, lastSequence, sequenceGaps };
+}
+
+export interface DailyRootVerificationResult {
+  valid: boolean;
+  checkedDays: number;
+  failedDate: string | null;
+  reason: string | null;
+}
+
+/**
+ * Recomputes every stored daily Merkle root from its day's checksum rows.
+ * This anchors the chain's head: deleting the newest checksum rows is invisible
+ * to a forward chain walk, but it changes the day's recomputed root.
+ */
+export async function verifyDailyChecksumRoots(): Promise<DailyRootVerificationResult> {
+  const roots = await prisma.dailyChecksumRoot.findMany({ orderBy: { date: 'asc' } });
+
+  for (const root of roots) {
+    const dayStart = new Date(`${root.date}T00:00:00.000Z`);
+    const dayEnd = new Date(`${root.date}T23:59:59.999Z`);
+    const rows = await prisma.paymentChecksum.findMany({
+      where: { createdAt: { gte: dayStart, lte: dayEnd } },
+      orderBy: { sequence: 'asc' },
+    });
+
+    if (rows.length !== root.leafCount) {
+      return {
+        valid: false,
+        checkedDays: roots.indexOf(root),
+        failedDate: root.date,
+        reason: `Day ${root.date} root commits to ${root.leafCount} leaves but ${rows.length} checksum rows exist`,
+      };
+    }
+
+    const tree = buildMerkleTree(rows.map((row) => Buffer.from(row.payloadHash, 'hex')));
+    if (tree.root !== root.merkleRoot) {
+      return {
+        valid: false,
+        checkedDays: roots.indexOf(root),
+        failedDate: root.date,
+        reason: `Day ${root.date} recomputed Merkle root ${tree.root} does not match stored root ${root.merkleRoot}`,
+      };
+    }
+  }
+
+  return { valid: true, checkedDays: roots.length, failedDate: null, reason: null };
+}
+
 function utcDayString(date: Date): string {
   return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
 }

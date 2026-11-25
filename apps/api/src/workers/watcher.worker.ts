@@ -2,7 +2,7 @@ import { isValidEd25519PublicKey } from '@stellar-alerts/shared';
 import { env } from '../config/env';
 import { prisma, connectWithRetry } from '../lib/prisma';
 import { stellar, decodeHorizonAsset, parseSacTransferEvent, formatTokenAmount } from '../lib/stellar';
-import { enqueuePaymentAlert } from '../lib/queue';
+import { enqueuePaymentAlert, startAlertSpillover } from '../lib/queue';
 import { publishPaymentEvent } from '../lib/realtime';
 import {
   getSorobanLatestLedger,
@@ -22,18 +22,28 @@ import { appendPaymentChecksum } from '../services/checksumChain.service';
 import { createLogger } from '../lib/logger';
 import { outboxService } from '../modules/outbox/outbox.service';
 import { velocityAnomalyDetector } from '../modules/security/velocity-detector';
+import { amlRiskScorer } from '../modules/security/aml-risk.service';
 import { WorkerLifecycleManager } from '../lib/worker-lifecycle';
 import { startTelemetry, shutdownTelemetry } from '../lib/telemetry';
 import { startWorkerMetricsServer, stopWorkerMetricsServer } from '../lib/worker-metrics-server';
 import { trace, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
 import { FullJitterBackoff } from './watcher/stream-reconnect';
 import { runTrustlineSentinelPass } from '../modules/stellar/trustline-sentinel.service';
+import { runManageDataSentinelPass } from '../modules/stellar/manage-data-sentinel';
+import { runSponsorshipSentinelPass } from '../modules/stellar/sponsorship-sentinel';
+import { runAssetIssuerSentinelPass } from '../modules/stellar/asset-issuer-sentinel';
+import { timeSeriesRollupEngine } from '../modules/analytics/timeseries-rollup';
+import { sequencePreconditionWatcher } from '../modules/stellar/sequence-watcher.service';
 import { anchorLifecycleWatcher } from '../modules/stellar/anchor-watcher.service';
 import { stateSnapshotManager } from '../modules/watcher/snapshot.service';
 import { deduplicationPipeline } from '../lib/deduplicator';
 import { allowanceSentinelService } from '../modules/soroban/allowance-sentinel.service';
 import { flashLoanDetector } from '../modules/soroban/flash-loan-detector';
 import { contractGovernanceSentinel } from '../modules/soroban/governance-sentinel.service';
+import { mevArbitrageDetector, type LedgerSwap } from '../modules/soroban/mev-detector';
+import { feeBumpSentinel, type HorizonFeeBumpRecord } from '../modules/stellar/feebump-sentinel';
+import { resourceSaturationProfiler, type ProfileInput } from '../modules/soroban/resource-profiler';
+import { classicAmmWatcher, type HorizonLiquidityPoolOperation } from '../modules/stellar/classic-amm.service';
 import { SignerWatcher, RedisSignerSnapshotStore } from '../modules/stellar/signer-watcher.service';
 import { MonitoredAddressRegistry } from '../lib/radix-index';
 import { scanLedgerOperations, operationMask } from '../lib/xdr-wasm';
@@ -69,6 +79,7 @@ import {
 import { asEnrichedSorobanEvents, type EnrichedSorobanEvent } from '../types/soroban-event';
 import { isPingMessage } from '../types/ipc';
 import { extractFilterRules } from '../types/notification-preference';
+import type { AmlRiskAssessment, AmlTransactionEdge } from '@stellar-alerts/shared';
 
 const tracer = trace.getTracer('watcher-worker');
 
@@ -115,6 +126,35 @@ export function syncMonitoredAddresses(wallets: ReadonlyArray<{ publicKey: strin
     })(),
     wallets.length,
   );
+}
+
+/**
+ * Loads the incoming payment edges for an address so the AML scorer can walk
+ * the transaction graph backwards (#928).
+ *
+ * Only payments received by a wallet whose public key is `address` count as
+ * incoming edges; a plain counterparty address with no wallet on this
+ * deployment yields no edges. The query is bounded so a busy wallet cannot
+ * turn one risk evaluation into an unbounded scan.
+ */
+async function loadIncomingAmlEdges(address: string): Promise<AmlTransactionEdge[]> {
+  const wallets = await prisma.wallet.findMany({
+    where: { publicKey: address },
+    select: { id: true },
+  });
+  if (wallets.length === 0) return [];
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      walletId: { in: wallets.map((wallet) => wallet.id) },
+      fromAddress: { not: '' },
+    },
+    select: { fromAddress: true },
+    orderBy: { receivedAt: 'desc' },
+    take: 200,
+  });
+
+  return payments.map((payment) => ({ from: payment.fromAddress, to: address }));
 }
 
 
@@ -387,6 +427,14 @@ export async function processPaymentRecord(
       }
 
       if (isNewPayment && payment) {
+        timeSeriesRollupEngine.record({
+          amount,
+          asset,
+          assetIssuer,
+          fromAddress,
+          receivedAt,
+        });
+
         // Best-effort, non-throwing by design (see services/checksumChain.service.ts):
         // a checksum-chain bug must never block real payment ingestion/alerting.
         await appendPaymentChecksum({
@@ -401,8 +449,39 @@ export async function processPaymentRecord(
           receivedAt,
         });
 
+        // Automated Phishing & Address-Poisoning Lookalike Dust Detector (#994)
+        let poisoningResult: AddressPoisoningCheckResult | null = null;
+        try {
+          poisoningResult = await addressPoisoningDetector.evaluateIncomingPayment({
+            walletId: wallet.id,
+            walletPublicKey: wallet.publicKey,
+            userId: wallet.userId,
+            paymentId: payment.id,
+            txHash,
+            fromAddress,
+            amount: Number(amount),
+            asset,
+            timestamp: receivedAt.getTime(),
+          });
+          if (poisoningResult.isPoisoning) {
+            span.setAttribute('security.addressPoisoning', true);
+          }
+        } catch (poisonErr: unknown) {
+          log.warn(
+            { err: poisonErr instanceof Error ? poisonErr.message : String(poisonErr), txHash },
+            'Address-poisoning detection evaluation skipped',
+          );
+        }
+
         if (wallet.userId) {
-          await publishPaymentEvent(wallet.userId, payment);
+          const realtimePayment = poisoningResult?.isPoisoning
+            ? {
+                ...payment,
+                isQuarantined: true,
+                securityWarning: poisoningResult.securityWarning,
+              }
+            : payment;
+          await publishPaymentEvent(wallet.userId, realtimePayment);
         }
 
         // Dynamic Anomaly Detection for Flash Account Draining and Velocity Spikes (#931)
@@ -420,6 +499,26 @@ export async function processPaymentRecord(
           log.warn({ err: velErr?.message, txHash }, 'Velocity anomaly detection evaluation skipped');
         }
 
+        // AML risk scoring (#928): evaluate the counterparty against the local
+        // flagged-address list over a two-hop graph. Skipped entirely when no
+        // addresses are configured, so the default path stays I/O-free.
+        let amlRisk: AmlRiskAssessment | null = null;
+        let amlCritical = false;
+        if (fromAddress && amlRiskScorer.hasFlaggedAddresses()) {
+          try {
+            amlRisk = await amlRiskScorer.evaluateWithEdgeLoader(
+              fromAddress,
+              loadIncomingAmlEdges,
+            );
+            amlCritical = amlRiskScorer.shouldTriggerCritical(amlRisk);
+          } catch (amlErr: any) {
+            log.warn(
+              { err: amlErr?.message, txHash, fromAddress },
+              'AML risk evaluation skipped',
+            );
+          }
+        }
+
         const alertJobPayload = {
           paymentId: payment.id,
           txHash,
@@ -429,7 +528,25 @@ export async function processPaymentRecord(
           assetIssuer,
           fromAddress,
           receivedAt: receivedAt.toISOString(),
+          ...(amlRisk ? { amlRisk } : {}),
+          // Critical AML findings jump the normal priority lane.
+          ...(amlCritical ? { severity: 'critical' } : {}),
         };
+
+        if (amlCritical && amlRisk) {
+          log.warn(
+            {
+              txHash,
+              fromAddress,
+              score: amlRisk.score,
+              hops: amlRisk.hops,
+              match: amlRisk.matches[0]?.category,
+            },
+            '🚨 AML critical risk on incoming payment source',
+          );
+          span.setAttribute('payment.amlRiskScore', amlRisk.score);
+          span.setAttribute('payment.amlRiskLevel', amlRisk.level);
+        }
 
         // Persisted AlertRule records take priority when a user has any
         // configured (see lib/alert-rule-evaluator.ts): only a matching
@@ -517,7 +634,16 @@ export async function processPaymentRecord(
           }
         }
 
+        // A critical AML finding is a compliance escalation, not a user
+        // preference: deliver it even when alert rules / filter rules would
+        // otherwise suppress the payment.
+        if (amlCritical && !dispatched) {
+          await enqueuePaymentAlert(alertJobPayload);
+          dispatched = true;
+        }
+
         span.setAttribute('payment.enqueued', dispatched);
+        }
       }
 
       if (gap.hasGap) {
@@ -1044,6 +1170,33 @@ async function runTrustlineSentinel(publicKeys: string[]): Promise<void> {
   } catch (err: unknown) {
     log.warn(`[WatcherWorker] Trustline sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+  try {
+    await runManageDataSentinelPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Manage-data sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  try {
+    await sequencePreconditionWatcher.runPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Sequence watcher pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  try {
+    await runSponsorshipSentinelPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Sponsorship sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Asset issuer flag / home-domain / supply sentinel. Like the trustline pass,
+ * failures are logged and swallowed so the payment poll keeps running.
+ */
+async function runAssetIssuerSentinel(publicKeys: string[]): Promise<void> {
+  try {
+    await runAssetIssuerSentinelPass(publicKeys);
+  } catch (err: unknown) {
+    log.warn(`[WatcherWorker] Asset issuer sentinel pass failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function pollOnce() {
@@ -1064,6 +1217,7 @@ export async function pollOnce() {
         }
       }
       await runTrustlineSentinel(wallets.map((wallet) => wallet.publicKey));
+      await runAssetIssuerSentinel(wallets.map((wallet) => wallet.publicKey));
       const contractIds = getActiveContractIds();
       if (contractIds.length > 0) {
         await processSorobanContractsConcurrently(contractIds);
@@ -1105,6 +1259,9 @@ export async function runWatcher() {
     for (const close of walletStreams.values()) close();
     walletStreams.clear();
   });
+  watcherLifecycle.registerCleanup('timeSeriesRollups', async () => {
+    await timeSeriesRollupEngine.flush();
+  });
   watcherLifecycle.registerCleanup('prisma', async () => {
     await prisma.$disconnect();
   });
@@ -1113,6 +1270,12 @@ export async function runWatcher() {
   });
 
   await loadContractRegistry();
+
+  // Replays alert jobs journaled to disk before a restart. A journal problem
+  // must not stop ingestion, since enqueueing has its own fallback.
+  await startAlertSpillover().catch((err: unknown) => {
+    log.error(`[WatcherWorker] Could not open alert spillover journal: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   // Default alert channel; real delivery channels register themselves the same way.
   contractRouter.registerChannel('log', (alert) => {
@@ -1186,6 +1349,7 @@ export async function runWatcher() {
           }
 
           await runTrustlineSentinel(wallets.map((wallet) => wallet.publicKey));
+          await runAssetIssuerSentinel(wallets.map((wallet) => wallet.publicKey));
 
           const contractIds = getActiveContractIds();
           if (contractIds.length > 0) {
@@ -1292,6 +1456,13 @@ export async function runWatcher() {
 
   const pollTimer = setInterval(poll, 30000);
   watcherLifecycle.trackInterval(pollTimer);
+
+  const rollupFlushTimer = setInterval(() => {
+    timeSeriesRollupEngine.flush().catch((err: unknown) => {
+      log.warn({ err }, 'Failed to flush time-series rollups; buffered data will be retried');
+    });
+  }, 5000);
+  watcherLifecycle.trackInterval(rollupFlushTimer);
 
   const registryTimer = setInterval(() => {
     loadContractRegistry();
@@ -1486,6 +1657,50 @@ export async function inspectTransactionForFlashLoans(input: {
  */
 export async function inspectContractGovernance(event: any) {
   return contractGovernanceSentinel.parseGovernanceEvent(event);
+}
+
+/**
+ * Intra-ledger MEV detector: scans every swap of one closed ledger for cyclic
+ * arbitrage and sandwich extraction and alerts affected pool subscribers (#970).
+ */
+export async function inspectLedgerForMev(swaps: readonly LedgerSwap[]) {
+  return mevArbitrageDetector.analyzeAndNotify(swaps);
+}
+
+/**
+ * Fee-bump sponsor sentinel: unwraps CAP-0015 envelopes, tracks rolling hourly
+ * fee burn per sponsor and alerts on fee surges or failed inner transactions (#978).
+ */
+export function inspectFeeBumpTransaction(record: HorizonFeeBumpRecord, networkPassphrase: string) {
+  return feeBumpSentinel.inspectHorizonTransaction(record, networkPassphrase);
+}
+
+/**
+ * Classic protocol-18 liquidity pool watcher: decodes deposit/withdraw operations,
+ * values LP shares, derives price bounds and slippage, and alerts subscribers
+ * watching the acting wallet or the pool ID (#982). Non-pool operations are ignored.
+ */
+export async function inspectClassicAmmOperations(ops: readonly HorizonLiquidityPoolOperation[]) {
+  try {
+    return await classicAmmWatcher.inspectOperations(ops);
+  } catch (err) {
+    log.warn({ err: err instanceof Error ? err.message : String(err) }, 'Classic AMM inspection failed');
+    return [];
+  }
+}
+
+/**
+ * Soroban resource saturation profiler: decodes a transaction's TransactionMetaV3
+ * and warns the contract owner when CPU, memory or ledger read/write usage crosses
+ * 80% of the network maximum, before invocations start hitting ResourceLimitExceeded (#972).
+ */
+export async function inspectSorobanResourceUsage(input: ProfileInput) {
+  try {
+    return await resourceSaturationProfiler.profile(input);
+  } catch (err) {
+    log.warn({ txHash: input.txHash, err: err instanceof Error ? err.message : String(err) }, 'Resource profiling failed');
+    return null;
+  }
 }
 
 /**

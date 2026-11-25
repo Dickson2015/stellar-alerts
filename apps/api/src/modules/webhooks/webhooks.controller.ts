@@ -1,5 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { webhookParamsSchema, listWebhookLogsQuerySchema } from './webhooks.schema';
+import {
+  webhookParamsSchema,
+  listWebhookLogsQuerySchema,
+  certificationRunSchema,
+} from './webhooks.schema';
+import { webhookCertificationSuite } from './certification-suite.service';
 import { validateWebhookRegistration } from './webhook.validator';
 import { webhooksService } from './webhooks.service';
 import { CursorError } from '../../utils/pagination';
@@ -82,6 +87,25 @@ export class WebhooksController {
       }
       throw error;
     }
+  }
+
+  /** Runs the ten-probe certification suite against a subscriber's receiver (#1039). */
+  async runCertification(request: FastifyRequest, reply: FastifyReply) {
+    const parsed = certificationRunSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw zodValidationError(parsed, 'Invalid certification request');
+    }
+
+    const userId = (request as any).user.id;
+    const report = await webhookCertificationSuite.run({
+      userId,
+      ...parsed.data,
+    });
+    return reply.send({
+      success: report.certified,
+      score: report.score,
+      report,
+    });
   }
 
   async getWebhookLogs(request: FastifyRequest, reply: FastifyReply) {

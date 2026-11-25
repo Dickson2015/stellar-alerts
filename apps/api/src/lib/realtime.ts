@@ -14,6 +14,7 @@ const log = createLogger({ module: 'Realtime' });
 export const REALTIME_CHANNELS = {
   PAYMENTS: 'stellar-alerts:payments',
   DELIVERIES: 'stellar-alerts:deliveries',
+  ALERTS: 'stellar-alerts:alerts',
 } as const;
 
 export interface RealtimeEnvelope<T = unknown> {
@@ -23,7 +24,25 @@ export interface RealtimeEnvelope<T = unknown> {
   timestamp: string;
 }
 
-async function publish(channel: string, envelope: RealtimeEnvelope): Promise<void> {
+/** Stable SSE identity. The timestamp prefix keeps IDs ordered across pods. */
+export interface AlertStreamEvent {
+  id: string;
+  userId: string;
+  event: string;
+  severity?: string;
+  walletId?: string;
+  payload: unknown;
+  timestamp: string;
+}
+
+let alertSequence = 0;
+
+export type AlertStreamPublishInput = Omit<AlertStreamEvent, 'id' | 'timestamp'> & {
+  id?: string;
+  timestamp?: string;
+};
+
+async function publish(channel: string, envelope: unknown): Promise<void> {
   try {
     await redis.publish(channel, JSON.stringify(envelope));
   } catch (err: any) {
@@ -50,4 +69,18 @@ export function publishDeliveryEvent(userId: string, delivery: unknown): Promise
     payload: delivery,
     timestamp: new Date().toISOString(),
   });
+}
+
+/**
+ * Publishes an alert to the SSE replay hub. Workers and API pods are separate
+ * processes, so the Redis channel is the only bridge to connected browsers.
+ */
+export function publishAlertEvent(input: AlertStreamPublishInput): Promise<void> {
+  const timestamp = input.timestamp ?? new Date().toISOString();
+  const event: AlertStreamEvent = {
+    ...input,
+    id: input.id ?? `${Date.parse(timestamp)}-${++alertSequence}`,
+    timestamp,
+  };
+  return publish(REALTIME_CHANNELS.ALERTS, event);
 }

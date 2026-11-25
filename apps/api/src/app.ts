@@ -13,6 +13,7 @@ import { sorobanServer } from "./lib/soroban";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { walletsRoutes } from "./modules/wallets/wallets.routes";
 import { paymentsRoutes } from "./modules/payments/payments.routes";
+import { analyticsRoutes } from "./modules/analytics/analytics.routes";
 import { webhooksRoutes } from "./modules/webhooks/webhooks.routes";
 import { getWellKnownStellarAlertsMetadata } from "./modules/webhooks/ed25519-signer";
 import { accountRoutes } from "./modules/account/account.routes";
@@ -22,6 +23,7 @@ import { sorobanStateRoutes } from "./modules/soroban-state/soroban-state.routes
 import { wasmAnalyzerRoutes } from "./modules/wasm-analyzer/wasm-analyzer.routes";
 import { notificationsRoutes } from "./modules/notifications/notifications.routes";
 import { alertRulesRoutes } from "./modules/alert-rules/alert-rules.routes";
+import { alertsRoutes } from "./modules/alerts/alerts.routes";
 import { deadLettersRoutes } from "./modules/dead-letters/dead-letters.routes";
 import { discordInteractionsRoutes } from "./modules/discord-interactions";
 import { slackRoutes } from "./modules/slack/slack.routes";
@@ -238,10 +240,12 @@ export const buildApp = async () => {
   app.register(authRoutes);
   app.register(walletsRoutes);
   app.register(paymentsRoutes);
+  app.register(analyticsRoutes);
   app.register(webhooksRoutes);
   app.register(accountRoutes);
   app.register(notificationsRoutes);
   app.register(alertRulesRoutes);
+  await app.register(alertsRoutes, { prefix: "/api/v1" });
   app.register(deadLettersRoutes);
   app.register(slackRoutes);
   app.register(slackInteractionsRoutes);

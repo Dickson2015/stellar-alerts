@@ -1,7 +1,28 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { authController } from './auth.controller';
 import { sep10Controller } from './sep10.controller';
 import { authenticateHook } from '../../middleware/auth.middleware';
+import { webAuthnService, WebAuthnError } from './webauthn.service';
+
+const registerVerifySchema = z.object({
+  nickname: z.string().trim().min(1).max(100),
+  clientDataJSON: z.string().min(1),
+  attestationObject: z.string().min(1),
+  transports: z.array(z.string()).optional(),
+});
+
+const assertionChallengeSchema = z.object({
+  purpose: z.enum(['login', 'step-up']).optional().default('login'),
+});
+
+const assertionVerifySchema = z.object({
+  credentialId: z.string().min(1),
+  clientDataJSON: z.string().min(1),
+  authenticatorData: z.string().min(1),
+  signature: z.string().min(1),
+  expectedPurpose: z.enum(['login', 'step-up']).optional(),
+});
 
 export async function authRoutes(app: FastifyInstance) {
   app.post('/auth/request-link', authController.requestMagicLink.bind(authController));
@@ -37,5 +58,120 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Lost device recovery (public)
   app.post('/auth/mfa/recover', authController.recoverAccount.bind(authController));
+
+  // WebAuthn / FIDO2 Hardware Security Key endpoints (#993)
+  app.post(
+    '/auth/webauthn/register/challenge',
+    { preHandler: [authenticateHook] },
+    async (request, reply) => {
+      const user = request.user!;
+      const options = await webAuthnService.generateRegistrationChallenge({
+        userId: user.id,
+        email: user.email,
+      });
+      return reply.send({ success: true, options });
+    },
+  );
+
+  app.post(
+    '/auth/webauthn/register/verify',
+    { preHandler: [authenticateHook] },
+    async (request, reply) => {
+      const parsed = registerVerifySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parsed.error.flatten() });
+      }
+      try {
+        const credential = await webAuthnService.verifyRegistrationAttestation({
+          userId: request.user!.id,
+          ...parsed.data,
+        });
+        return reply.status(201).send({
+          success: true,
+          credential: {
+            id: credential.id,
+            credentialId: credential.credentialId,
+            nickname: credential.nickname,
+            algorithm: credential.algorithm,
+            signCount: credential.signCount,
+            createdAt: credential.createdAt,
+          },
+        });
+      } catch (err: unknown) {
+        if (err instanceof WebAuthnError) {
+          return reply.status(err.statusCode).send({ error: err.code, message: err.message });
+        }
+        throw err;
+      }
+    },
+  );
+
+  app.get(
+    '/auth/webauthn/credentials',
+    { preHandler: [authenticateHook] },
+    async (request, reply) => {
+      const credentials = await webAuthnService.listCredentials(request.user!.id);
+      return reply.send({ success: true, credentials });
+    },
+  );
+
+  app.delete(
+    '/auth/webauthn/credentials/:id',
+    { preHandler: [authenticateHook] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const deleted = await webAuthnService.deleteCredential(request.user!.id, id);
+      if (!deleted) {
+        return reply.status(404).send({ error: 'NOT_FOUND', message: 'Credential not found' });
+      }
+      return reply.send({ success: true });
+    },
+  );
+
+  app.post(
+    '/auth/webauthn/authenticate/challenge',
+    { preHandler: [authenticateHook] },
+    async (request, reply) => {
+      const parsed = assertionChallengeSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parsed.error.flatten() });
+      }
+      try {
+        const options = await webAuthnService.generateAssertionChallenge({
+          userId: request.user!.id,
+          purpose: parsed.data.purpose,
+        });
+        return reply.send({ success: true, options });
+      } catch (err: unknown) {
+        if (err instanceof WebAuthnError) {
+          return reply.status(err.statusCode).send({ error: err.code, message: err.message });
+        }
+        throw err;
+      }
+    },
+  );
+
+  app.post(
+    '/auth/webauthn/authenticate/verify',
+    { preHandler: [authenticateHook] },
+    async (request, reply) => {
+      const parsed = assertionVerifySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', details: parsed.error.flatten() });
+      }
+      try {
+        const result = await webAuthnService.verifyAssertion({
+          userId: request.user!.id,
+          ...parsed.data,
+        });
+        return reply.send({ success: true, ...result });
+      } catch (err: unknown) {
+        if (err instanceof WebAuthnError) {
+          return reply.status(err.statusCode).send({ error: err.code, message: err.message });
+        }
+        throw err;
+      }
+    },
+  );
 }
 

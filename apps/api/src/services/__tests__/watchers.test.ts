@@ -7,21 +7,27 @@ import { BlendHealthFactorWatcher } from '../blendHealthFactorWatcher';
 describe('Stellar Alerts Watcher Services (#425, #427, #428, #429)', () => {
   it('#425: ClaimableBalanceWatcher creates expiration alerts', () => {
     const watcher = new ClaimableBalanceWatcher(['GAAAAAAA']);
+    const now = new Date('2026-01-01T00:00:00.000Z');
     const alerts = watcher.processBalance(
       {
         id: 'bal1',
         asset: 'XLM',
         amount: '100',
         sponsor: 'GSPONSOR',
-        claimants: [{ destination: 'GAAAAAAA', predicate: { absBeforeLedger: 1050 } }],
+        claimants: [
+          {
+            destination: 'GAAAAAAA',
+            predicate: { abs_before: new Date(now.getTime() + 60 * 60 * 1000).toISOString() },
+          },
+        ],
+        createdAt: now,
         lastModifiedLedger: 1000,
       },
-      1000,
+      now,
     );
 
-    expect(alerts.length).toBe(2); // CREATED + EXPIRING_SOON
-    expect(alerts[0]!.type).toBe('CREATED');
-    expect(alerts[1]!.type).toBe('EXPIRING_SOON');
+    // CREATED + NOW_CLAIMABLE + EXPIRING_SOON (within the 24h window)
+    expect(alerts.map((alert) => alert.type)).toEqual(['CREATED', 'NOW_CLAIMABLE', 'EXPIRING_SOON']);
   });
 
   it('#427: StateArchivalWatcherEngine detects eviction and critical TTL', () => {

@@ -35,3 +35,13 @@ export const sandboxReplaySchema = z.object({
 });
 
 export type SandboxReplayInput = z.infer<typeof sandboxReplaySchema>;
+
+// POST /webhooks/certification/run. The subscriber supplies the shared secret
+// its receiver verifies with; the previous secret enables the rotation probe.
+export const certificationRunSchema = z.object({
+  targetUrl: z.string().url().max(2048),
+  secret: z.string().min(8).max(512),
+  previousSecret: z.string().min(8).max(512).optional(),
+});
+
+export type CertificationRunInput = z.infer<typeof certificationRunSchema>;

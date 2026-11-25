@@ -25,8 +25,12 @@ import {
   type PinnedWebhookTarget,
 } from "../modules/webhooks/ssrf-filter";
 import { alertStormBundler } from "../modules/notifications/storm-bundler";
+import { EciesPayloadEncryptor, type EciesCurve } from "../utils/ecies";
 
 const log = createLogger({ module: "WebhookDispatcherWorker" });
+
+/** Stateless encryptor; a fresh ephemeral key is generated per delivery. */
+const payloadEncryptor = new EciesPayloadEncryptor();
 
 export interface WebhookDispatchJobData {
   webhookId: string;
@@ -47,6 +51,14 @@ export interface WebhookDispatchJobData {
   ruleId?: string;
   /** Alert metadata for bundling (amount, fromAddress, etc.) */
   alertData?: Record<string, any>;
+  /**
+   * Recipient public key for end-to-end payload encryption (#929). When set,
+   * the JSON body is replaced by an ECIES envelope and the ephemeral key is
+   * published in the `Stellar-Alerts-Ephemeral-Key` header.
+   */
+  encryptionPublicKey?: string;
+  /** Recipient key curve; inferred from the key when omitted. */
+  encryptionCurve?: EciesCurve;
 }
 
 export interface WebhookDispatchResult {
@@ -57,6 +69,8 @@ export interface WebhookDispatchResult {
   reason?: string;
   pinnedIp?: string;
   lane?: QueueLane;
+  /** True when the request body was ECIES-encrypted for the subscriber. */
+  encrypted?: boolean;
 }
 
 export type WebhookTransportFn = (
@@ -66,23 +80,40 @@ export type WebhookTransportFn = (
   pinnedTarget?: PinnedWebhookTarget,
 ) => Promise<{ status: number; body?: string }>;
 
+/**
+ * Produces signature headers for the exact body that will be sent. Called
+ * AFTER masking so the signature covers the masked bytes.
+ */
+export type WebhookSignerFn = (
+  webhookId: string,
+  body: string,
+) => Promise<Record<string, string>>;
+
+const SIGNATURE_HEADER_NAMES = ["x-stellar-signature", "x-signature-secondary"];
+
 export class DispatcherWorker {
+  private signer?: WebhookSignerFn;
   private circuitBreaker: RedisCircuitBreaker;
   private workers: Map<QueueLane, Worker<WebhookDispatchJobData>> = new Map();
   private transport: WebhookTransportFn;
   private ssrfFilter: SsrfFilter;
   private laneManager: QueueLaneManager;
+  private scaler: WorkerScaler | null = null;
 
   constructor(
     circuitBreaker?: RedisCircuitBreaker,
     transport?: WebhookTransportFn,
     filter?: SsrfFilter,
     laneManager?: QueueLaneManager,
+    signer?: WebhookSignerFn,
+    customMatrixDispatcher?: MatrixDispatcher,
   ) {
+    this.signer = signer;
     this.circuitBreaker = circuitBreaker || new RedisCircuitBreaker();
     this.transport = transport || this.defaultTransport.bind(this);
     this.ssrfFilter = filter || ssrfFilter;
     this.laneManager = laneManager || new QueueLaneManager();
+    this.matrixDispatcher = customMatrixDispatcher || matrixDispatcher;
   }
 
   private async defaultTransport(
@@ -180,6 +211,8 @@ export class DispatcherWorker {
       ruleId,
       alertData,
       severity,
+      maskingPolicy,
+      matrixConfig,
     } = job.data;
     const lane: QueueLane = job.data.lane ?? resolveLaneForAlert(job.data);
 
@@ -261,13 +294,14 @@ export class DispatcherWorker {
       };
     }
 
+    const targetUrl = matrixConfig ? matrixConfig.homeserverUrl : url;
     let pinnedTarget: PinnedWebhookTarget;
     try {
-      pinnedTarget = await this.ssrfFilter.validateAndResolve(url);
+      pinnedTarget = await this.ssrfFilter.validateAndResolve(targetUrl);
     } catch (err: any) {
       const statusCode = err instanceof SsrfBlockedError ? err.statusCode : 400;
       log.error(
-        { webhookId, url, reason: err.reason ?? err.message, statusCode, lane },
+        { webhookId, url: targetUrl, reason: err.reason ?? err.message, statusCode, lane },
         "[SECURITY_AUDIT] Blocked webhook dispatch due to SSRF egress policy",
       );
       return {
@@ -279,8 +313,37 @@ export class DispatcherWorker {
       };
     }
 
+    let payloadStr = JSON.stringify(payload);
+    let dispatchHeaders = headers;
+    let encrypted = false;
+
+    if (job.data.encryptionPublicKey) {
+      try {
+        const sealed = payloadEncryptor.encryptJson(
+          payload,
+          job.data.encryptionPublicKey,
+          job.data.encryptionCurve ? { curve: job.data.encryptionCurve } : {},
+        );
+        payloadStr = sealed.body;
+        // Encryption headers win over subscriber-supplied ones so a stored
+        // header cannot redirect the receiver to the wrong key.
+        dispatchHeaders = { ...headers, ...sealed.headers };
+        encrypted = true;
+      } catch (err: any) {
+        log.error(
+          { webhookId, url, reason: err?.message, lane },
+          'Blocked webhook dispatch: ECIES payload encryption failed',
+        );
+        return {
+          webhookId,
+          status: 'failed',
+          reason: 'ecies_encryption_failed',
+          lane,
+        };
+      }
+    }
+
     try {
-      const payloadStr = JSON.stringify(payload);
       const { result: res, durationMs } =
         await webhookTelemetry.measureDispatch(
           webhookId,
@@ -290,7 +353,7 @@ export class DispatcherWorker {
               const response = await this.transport(
                 url,
                 payloadStr,
-                headers,
+                dispatchHeaders,
                 pinnedTarget,
               );
               if (response.status >= 500) {
@@ -313,6 +376,7 @@ export class DispatcherWorker {
         durationMs,
         pinnedIp: pinnedTarget.pinnedIp,
         lane,
+        ...(encrypted ? { encrypted: true } : {}),
       };
     } catch (err: any) {
       if (err instanceof CircuitBreakerOpenError) {
@@ -376,7 +440,11 @@ export class DispatcherWorker {
       );
     }
 
+    this.startAutoscaler(baseQueueName);
+
     registerRedisCleanupTask(async () => {
+      this.scaler?.stop();
+      this.scaler = null;
       await Promise.all(
         Array.from(this.workers.values()).map((w) => w.close()),
       );
@@ -384,6 +452,44 @@ export class DispatcherWorker {
     });
 
     return this.workers;
+  }
+
+  /**
+   * Attaches the adaptive worker scaler (#915). The scaler watches queue
+   * backlog, event-loop lag and heap pressure, then redistributes the new
+   * total concurrency across lanes in proportion to their configured shares.
+   */
+  private startAutoscaler(baseQueueName: string): void {
+    const lanes = Object.keys(QUEUE_LANE_CONFIGS) as QueueLane[];
+    const baseTotal = lanes.reduce((sum, lane) => sum + QUEUE_LANE_CONFIGS[lane].concurrency, 0);
+    const queueKeys = lanes.map(
+      (lane) => `bull:${this.laneManager.getQueueName(lane, baseQueueName)}:wait`,
+    );
+
+    this.scaler = new WorkerScaler(redis as any, baseTotal, {
+      workerName: "webhook-dispatcher",
+      queueKeys,
+    });
+
+    this.scaler.on("scale", (_previous, next, direction, reason) => {
+      let assigned = 0;
+      lanes.forEach((lane, index) => {
+        const worker = this.workers.get(lane);
+        if (!worker) return;
+        const share =
+          index === lanes.length - 1
+            ? Math.max(1, next - assigned)
+            : Math.max(1, Math.round((next * QUEUE_LANE_CONFIGS[lane].concurrency) / baseTotal));
+        assigned += share;
+        worker.concurrency = share;
+      });
+      log.info(
+        { totalConcurrency: next, direction, reason },
+        "Adaptive worker scaler adjusted dispatcher lane concurrency",
+      );
+    });
+
+    this.scaler.start();
   }
 
   /** Returns the worker for a specific lane (if started). */
@@ -396,6 +502,11 @@ export class DispatcherWorker {
   /** Returns the lane manager used by this worker (for metrics/integration tests). */
   public getLaneManager(): QueueLaneManager {
     return this.laneManager;
+  }
+
+  /** Returns the adaptive scaler attached to this dispatcher (if started). */
+  public getWorkerScaler(): WorkerScaler | null {
+    return this.scaler;
   }
 
   /** Returns fair scheduling statistics */

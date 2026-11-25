@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { dispatchWebhookAndLog } from '../../lib/queue';
 import { fetchWithTimeout } from '../../lib/external-request';
+import { publishAlertEvent } from '../../lib/realtime';
 import { createLogger } from '../../lib/logger';
 import { decryptPersonalField } from '../../utils/privacy';
 import { env } from '../../config/env';
@@ -31,6 +32,16 @@ export async function deliverUserAlert(
     },
   });
   if (!user) return;
+
+  // SSE subscribers receive the same alert independently of webhook/Telegram
+  // delivery. Publishing is best-effort so a Redis hiccup cannot block delivery.
+  void publishAlertEvent({
+    userId,
+    event: String(webhookPayload.event ?? 'alert'),
+    severity: String(webhookPayload.severity ?? 'MEDIUM').toUpperCase(),
+    walletId: typeof webhookPayload.walletId === 'string' ? webhookPayload.walletId : undefined,
+    payload: webhookPayload,
+  });
 
   for (const webhook of user.webhooks) {
     try {

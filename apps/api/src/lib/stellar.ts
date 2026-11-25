@@ -27,6 +27,16 @@ export interface DecodedStellarAsset {
   assetIssuer: string | null;
 }
 
+export interface HorizonClaimableBalanceRecord {
+  id: string;
+  asset: string;
+  amount: string;
+  sponsor: string;
+  createdAt: string;
+  lastModifiedLedger: number;
+  claimants: Array<{ destination: string; predicate: unknown }>;
+}
+
 export interface SacTransfer {
   contractId: string;
   assetCode: string | null;
@@ -624,14 +634,18 @@ export const stellar = {
     publicKey: string,
     cursor: string,
     limit: number = 100,
-    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+    options: { timeoutMs?: number; signal?: AbortSignal; includeTransactions?: boolean } = {},
   ): Promise<{ ok: boolean; records: any[] }> {
     if (!publicKey || !StellarSdk.StrKey.isValidEd25519PublicKey(publicKey)) {
       return { ok: false, records: [] };
     }
     try {
       const page = await withDeadline(
-        () => server.operations().forAccount(publicKey).cursor(cursor).order('asc').limit(limit).call(),
+        () => {
+          const builder = server.operations().forAccount(publicKey).cursor(cursor).order('asc').limit(limit);
+          // Embeds each operation's transaction as `transaction_attr`.
+          return (options.includeTransactions ? builder.join('transactions') : builder).call();
+        },
         options.timeoutMs ?? env.HORIZON_REQUEST_TIMEOUT_MS,
         options.signal,
         'Horizon',
@@ -640,6 +654,52 @@ export const stellar = {
     } catch (error: any) {
       console.warn(`[Stellar] Error fetching operations for ${publicKey}:`, error?.message || error);
       return { ok: false, records: [] };
+    }
+  },
+
+  // An account's data subentries as name -> base64 value; null if unavailable.
+  async getAccountDataEntries(
+    publicKey: string,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<Record<string, string> | null> {
+    if (!publicKey || !StellarSdk.StrKey.isValidEd25519PublicKey(publicKey)) {
+      return null;
+    }
+    try {
+      const account = await withDeadline(
+        () => server.accounts().accountId(publicKey).call(),
+        options.timeoutMs ?? env.HORIZON_REQUEST_TIMEOUT_MS,
+        options.signal,
+        'Horizon',
+      );
+      return (account.data_attr ?? {}) as Record<string, string>;
+    } catch (error: unknown) {
+      console.warn(
+        `[Stellar] Error fetching data entries for ${publicKey}:`,
+        error instanceof Error ? error.message : error,
+      );
+      return null;
+    }
+  },
+
+  // Whether a transaction hash is on the ledger. Throws on anything but a 404,
+  // so a Horizon outage is never mistaken for "this transaction does not exist".
+  async isTransactionOnLedger(
+    hash: string,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<boolean> {
+    try {
+      await withDeadline(
+        () => server.transactions().transaction(hash).call(),
+        options.timeoutMs ?? env.HORIZON_REQUEST_TIMEOUT_MS,
+        options.signal,
+        'Horizon',
+      );
+      return true;
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } }).response?.status;
+      if (error instanceof StellarSdk.NotFoundError || status === 404) return false;
+      throw error;
     }
   },
 
@@ -668,6 +728,49 @@ export const stellar = {
           amount: record.amount,
         };
       });
+    } catch (error: any) {
+      console.warn(`[Stellar] Error fetching claimable balances for ${publicKey}:`, error?.message || error);
+      return [];
+    }
+  },
+
+  /**
+   * Claimable balances an account can claim, preserving each claimant's raw
+   * Horizon predicate tree (unconditional / abs_before / rel_before / not /
+   * and / or). `getClaimableBalancesForClaimant` intentionally flattens the
+   * claimant list, so this variant exists for the claimable-balance watcher,
+   * which needs the predicates to compute exact claim windows.
+   */
+  async getClaimableBalancesWithPredicates(
+    publicKey: string,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<HorizonClaimableBalanceRecord[]> {
+    if (!publicKey || !StellarSdk.StrKey.isValidEd25519PublicKey(publicKey)) {
+      return [];
+    }
+    try {
+      const page: any = await withDeadline(
+        () => (server.claimableBalances() as any).claimant(publicKey).limit(200).call(),
+        options.timeoutMs ?? env.HORIZON_REQUEST_TIMEOUT_MS,
+        options.signal,
+        'Horizon',
+      );
+
+      return (page.records as any[]).map((record) => ({
+        id: record.id,
+        asset: record.asset,
+        amount: record.amount,
+        sponsor: record.sponsor ?? '',
+        // Horizon does not expose a separate creation timestamp for claimable
+        // balances; `rel_before` is anchored to when the entry was last
+        // modified, which is the creation ledger for an unclaimed balance.
+        createdAt: record.last_modified_time ?? new Date().toISOString(),
+        lastModifiedLedger: record.last_modified_ledger ?? 0,
+        claimants: (record.claimants ?? []).map((claimant: any) => ({
+          destination: claimant.destination,
+          predicate: claimant.predicate,
+        })),
+      }));
     } catch (error: any) {
       console.warn(`[Stellar] Error fetching claimable balances for ${publicKey}:`, error?.message || error);
       return [];

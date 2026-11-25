@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { WebsocketProvider } from 'y-websocket';
 import type { PaymentDTO } from '@stellar-alerts/shared';
+import { AddressTruncate } from '@/components/common/AddressTruncate';
 import {
   createAuditDoc,
   getAnnotation,
@@ -214,7 +215,11 @@ export const AuditWorkspace: React.FC<AuditWorkspaceProps> = ({
                 return (
                   <tr key={payment.id} className="align-top">
                     <td className="py-3 px-4 font-mono text-xs text-slate-400 whitespace-nowrap">
-                      {payment.txHash ? `${payment.txHash.slice(0, 10)}…` : payment.id}
+                      {payment.txHash ? (
+                        <AddressTruncate value={payment.txHash} prefixChars={10} suffixChars={6} />
+                      ) : (
+                        payment.id
+                      )}
                     </td>
                     <td className="py-3 px-4 font-semibold text-emerald-400 whitespace-nowrap">
                       {Number(payment.amount).toLocaleString()} {payment.asset}

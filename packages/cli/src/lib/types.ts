@@ -30,3 +30,17 @@ export interface PaymentDTO {
   /** Resume token for `/payments/stream?cursor=`; falls back to `id` when absent. */
   pagingToken?: string;
 }
+
+/** One Soroban contract event frame from `/soroban/events/stream`. */
+export interface SorobanEventDTO {
+  id: string;
+  contractId?: string;
+  topic?: string[];
+  amount?: number | string;
+  asset?: string;
+  from?: string;
+  to?: string;
+  txHash?: string;
+  ledger?: number;
+  createdAt?: Date | string;
+}
