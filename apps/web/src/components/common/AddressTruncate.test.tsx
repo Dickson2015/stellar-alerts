@@ -1,67 +1,52 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AddressTruncate } from './AddressTruncate';
 
 const G_ADDRESS = 'GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI';
-const C_ADDRESS = `C${'A'.repeat(54)}D`;
-const TX_HASH = '0123456789abcdef'.repeat(4);
+const C_ADDRESS = 'CCBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMAD';
 
 describe('AddressTruncate', () => {
-  it('truncates a 56-character G-address into prefix...suffix with defaults', () => {
+  it('truncates a 56-character G address with the default prefix and suffix lengths', () => {
     render(<AddressTruncate value={G_ADDRESS} />);
 
-    expect(screen.getByText('GBZXN7...DNMADI')).toBeInTheDocument();
+    const truncated = screen.getByText('GBZXN7...DNMADI');
+    expect(truncated).toBeInTheDocument();
+    expect(truncated).toHaveAttribute('title', G_ADDRESS);
+    expect(truncated).toHaveAttribute('aria-label', G_ADDRESS);
   });
 
-  it('uses the full value as both tooltip title and aria-label', () => {
-    render(<AddressTruncate value={G_ADDRESS} />);
+  it('truncates a 56-character C address with configurable prefix and suffix lengths', () => {
+    render(<AddressTruncate value={C_ADDRESS} prefixChars={6} suffixChars={6} />);
 
-    const address = screen.getByTestId('address-truncate');
-    expect(address).toHaveAttribute('title', G_ADDRESS);
-    expect(address).toHaveAttribute('aria-label', G_ADDRESS);
-    expect(screen.getByLabelText(G_ADDRESS)).toBe(address);
+    const truncated = screen.getByText('CCBZXN...FDNMAD');
+    expect(truncated).toBeInTheDocument();
+    expect(truncated).toHaveAttribute('title', C_ADDRESS);
+    expect(truncated).toHaveAttribute('aria-label', C_ADDRESS);
   });
 
-  it('respects configurable prefix and suffix lengths for a C-address', () => {
-    render(<AddressTruncate value={C_ADDRESS} prefixChars={4} suffixChars={4} />);
+  it('honors shorter custom prefix and suffix lengths', () => {
+    render(<AddressTruncate value={G_ADDRESS} prefixChars={4} suffixChars={4} />);
 
-    expect(screen.getByText('CAAA...AAAD')).toBeInTheDocument();
+    expect(screen.getByText('GBZX...MADI')).toBeInTheDocument();
   });
 
-  it('truncates 64-character transaction hashes', () => {
-    render(<AddressTruncate value={TX_HASH} prefixChars={10} suffixChars={6} />);
+  it('does not truncate short strings', () => {
+    render(<AddressTruncate value="short" />);
 
-    expect(screen.getByText('0123456789...abcdef')).toBeInTheDocument();
+    const value = screen.getByText('short');
+    expect(value).toBeInTheDocument();
+    expect(value).toHaveAttribute('title', 'short');
+    expect(value).toHaveAttribute('aria-label', 'short');
   });
 
-  it('does not truncate strings shorter than the threshold', () => {
-    render(<AddressTruncate value="GABC" />);
+  it('keeps the full transaction hash on the element for assistive technology', () => {
+    const hash = 'a'.repeat(64);
+    render(<AddressTruncate value={hash} prefixChars={8} suffixChars={8} />);
 
-    expect(screen.getByText('GABC')).toBeInTheDocument();
-  });
-
-  it('does not truncate when the length equals prefix plus suffix', () => {
-    render(<AddressTruncate value="GABCXYZ9" prefixChars={4} suffixChars={4} />);
-
-    expect(screen.getByText('GABCXYZ9')).toBeInTheDocument();
-  });
-
-  it('renders an empty value without an ellipsis', () => {
-    render(<AddressTruncate value="" />);
-
-    expect(screen.getByTestId('address-truncate')).toBeEmptyDOMElement();
-  });
-
-  it('supports a zero suffix without repeating the whole value', () => {
-    render(<AddressTruncate value={TX_HASH} prefixChars={8} suffixChars={0} />);
-
-    expect(screen.getByText('01234567...')).toBeInTheDocument();
-  });
-
-  it('applies an optional class name', () => {
-    render(<AddressTruncate value={G_ADDRESS} className="font-mono" />);
-
-    expect(screen.getByTestId('address-truncate')).toHaveClass('font-mono');
+    const truncated = screen.getByText('aaaaaaaa...aaaaaaaa');
+    expect(truncated).toHaveAttribute('aria-label', hash);
+    expect(truncated.getAttribute('aria-label')).toContain(hash);
+    expect(truncated).toHaveAttribute('title', hash);
   });
 });

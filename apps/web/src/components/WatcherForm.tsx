@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { AddressTruncate } from '@/components/common/AddressTruncate';
 import { useFreighterWallet } from '@/lib/hooks/useFreighterWallet';
-import { looksLikeStellarPublicKey, truncateAddress } from '@/lib/wallet/strkey';
+import { looksLikeStellarPublicKey } from '@/lib/wallet/strkey';
 
 export function WatcherForm({
   onWalletAdded,
@@ -100,7 +101,9 @@ export function WatcherForm({
           data-testid="freighter-connection-status"
           className="text-xs rounded border border-green-600/40 bg-green-600/10 p-3 space-y-1"
         >
-          <p className="font-semibold text-green-500">Connected: {truncateAddress(freighter.publicKey)}</p>
+          <p className="font-semibold text-green-500">
+            Connected: <AddressTruncate value={freighter.publicKey} />
+          </p>
           {freighter.network && <p className="text-gray-500 dark:text-gray-400">Network: {freighter.network}</p>}
           {freighter.isFunded ? (
             freighter.balances.length > 0 ? (

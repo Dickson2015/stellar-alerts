@@ -14,13 +14,12 @@ export {
   parseRedisUrl,
 } from './test-infra';
 export {
-  buildMockSorobanEvent,
-  buildMockTransferEvent,
-  buildMockSwapEvent,
-  buildMockUpgradeEvent,
-  buildMockSorobanEvents,
-  buildMockTopics,
-  encodeScValToBase64,
-  generateMockContractId,
-  type MockSorobanEventOptions,
-} from './factories/soroban-event.factory';
+  createSeededAccountAddress,
+  createSeededContractId,
+  createSeededContractIds,
+  createSeededKeypair,
+  createSeededKeypairBatch,
+  createSeededKeypairs,
+  deriveSeedHash,
+  type StellarSeed,
+} from './stellar-seeds';
