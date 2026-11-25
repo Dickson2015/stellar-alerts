@@ -25,9 +25,12 @@ import {
   type PinnedWebhookTarget,
 } from "../modules/webhooks/ssrf-filter";
 import { alertStormBundler } from "../modules/notifications/storm-bundler";
-import { WorkerScaler } from "../lib/worker-scaler";
+import { EciesPayloadEncryptor, type EciesCurve } from "../utils/ecies";
 
 const log = createLogger({ module: "WebhookDispatcherWorker" });
+
+/** Stateless encryptor; a fresh ephemeral key is generated per delivery. */
+const payloadEncryptor = new EciesPayloadEncryptor();
 
 export interface WebhookDispatchJobData {
   webhookId: string;
@@ -48,10 +51,14 @@ export interface WebhookDispatchJobData {
   ruleId?: string;
   /** Alert metadata for bundling (amount, fromAddress, etc.) */
   alertData?: Record<string, any>;
-  /** Per-webhook field masking policy applied before signing (#990). */
-  maskingPolicy?: MaskingPolicy | null;
-  /** Optional Matrix protocol room target for native Matrix alert dispatch (#1003). */
-  matrixConfig?: MatrixDispatchTarget;
+  /**
+   * Recipient public key for end-to-end payload encryption (#929). When set,
+   * the JSON body is replaced by an ECIES envelope and the ephemeral key is
+   * published in the `Stellar-Alerts-Ephemeral-Key` header.
+   */
+  encryptionPublicKey?: string;
+  /** Recipient key curve; inferred from the key when omitted. */
+  encryptionCurve?: EciesCurve;
 }
 
 export interface WebhookDispatchResult {
@@ -62,9 +69,8 @@ export interface WebhookDispatchResult {
   reason?: string;
   pinnedIp?: string;
   lane?: QueueLane;
-  eventId?: string;
-  txnId?: string;
-  retryAfterMs?: number;
+  /** True when the request body was ECIES-encrypted for the subscriber. */
+  encrypted?: boolean;
 }
 
 export type WebhookTransportFn = (
@@ -307,137 +313,34 @@ export class DispatcherWorker {
       };
     }
 
-    // Native Matrix protocol room dispatch (#1003)
-    if (matrixConfig) {
-      const maskedPayload = applyMaskingPolicy(payload, maskingPolicy).payload;
-      const matrixAlert: MatrixAlertPayload = {
-        alertId: String(
-          paymentId ?? maskedPayload.paymentId ?? maskedPayload.txHash ?? webhookId,
-        ),
-        title: typeof maskedPayload.title === "string" ? maskedPayload.title : undefined,
-        severity: severity ?? (typeof maskedPayload.severity === "string" ? maskedPayload.severity : undefined),
-        message: typeof maskedPayload.message === "string" ? maskedPayload.message : undefined,
-        txHash: typeof maskedPayload.txHash === "string" ? maskedPayload.txHash : undefined,
-        amount:
-          typeof maskedPayload.amount === "string" || typeof maskedPayload.amount === "number"
-            ? maskedPayload.amount
-            : undefined,
-        asset: typeof maskedPayload.asset === "string" ? maskedPayload.asset : undefined,
-        fromAddress:
-          typeof maskedPayload.fromAddress === "string" ? maskedPayload.fromAddress : undefined,
-        walletId: typeof maskedPayload.walletId === "string" ? maskedPayload.walletId : undefined,
-        memo: typeof maskedPayload.memo === "string" ? maskedPayload.memo : null,
-        receivedAt:
-          typeof maskedPayload.receivedAt === "string" ? maskedPayload.receivedAt : undefined,
-      };
+    let payloadStr = JSON.stringify(payload);
+    let dispatchHeaders = headers;
+    let encrypted = false;
 
+    if (job.data.encryptionPublicKey) {
       try {
-        const { result: matrixResult, durationMs } =
-          await webhookTelemetry.measureDispatch(
-            webhookId,
-            matrixConfig.homeserverUrl,
-            async () => {
-              return await this.circuitBreaker.execute(webhookId, async () => {
-                const res = await this.matrixDispatcher.dispatchAlert(
-                  matrixConfig,
-                  matrixAlert,
-                );
-                if (!res.success && (res.statusCode ?? 0) >= 500) {
-                  const err: any = new Error(
-                    res.error ?? `Matrix homeserver returned HTTP ${res.statusCode}`,
-                  );
-                  err.statusCode = res.statusCode;
-                  throw err;
-                }
-                return res;
-              });
-            },
-            paymentId,
-          );
-
-        if (!matrixResult.success) {
-          return {
-            webhookId,
-            status: "failed",
-            statusCode: matrixResult.statusCode,
-            durationMs,
-            reason: matrixResult.error,
-            txnId: matrixResult.txnId,
-            retryAfterMs: matrixResult.retryAfterMs,
-            lane,
-          };
-        }
-
-        return {
-          webhookId,
-          status: "delivered",
-          statusCode: matrixResult.statusCode ?? 200,
-          durationMs,
-          pinnedIp: pinnedTarget.pinnedIp,
-          eventId: matrixResult.eventId,
-          txnId: matrixResult.txnId,
-          lane,
-        };
+        const sealed = payloadEncryptor.encryptJson(
+          payload,
+          job.data.encryptionPublicKey,
+          job.data.encryptionCurve ? { curve: job.data.encryptionCurve } : {},
+        );
+        payloadStr = sealed.body;
+        // Encryption headers win over subscriber-supplied ones so a stored
+        // header cannot redirect the receiver to the wrong key.
+        dispatchHeaders = { ...headers, ...sealed.headers };
+        encrypted = true;
       } catch (err: any) {
-        if (err instanceof CircuitBreakerOpenError) {
-          log.warn(
-            { webhookId, lane },
-            "Fast-fail: circuit breaker opened during Matrix dispatch",
-          );
-          return {
-            webhookId,
-            status: "skipped",
-            reason: "circuit_breaker_open",
-            lane,
-          };
-        }
         log.error(
-          { webhookId, lane, err: err.message },
-          "Matrix alert delivery failed",
+          { webhookId, url, reason: err?.message, lane },
+          'Blocked webhook dispatch: ECIES payload encryption failed',
         );
         return {
           webhookId,
-          status: "failed",
-          reason: err.message,
+          status: 'failed',
+          reason: 'ecies_encryption_failed',
           lane,
         };
       }
-    }
-
-    let payloadStr: string;
-    let sendHeaders = headers;
-    try {
-      // Mask first, sign second: the signature must cover the masked bytes.
-      const masked = applyMaskingPolicy(payload, maskingPolicy);
-      payloadStr = JSON.stringify(masked.payload);
-      if (masked.maskedCount > 0) {
-        log.debug(
-          { webhookId, maskedCount: masked.maskedCount, paths: masked.appliedPaths },
-          "Applied webhook field masking policy",
-        );
-        const hasStaleSignature = Object.keys(headers).some((h) =>
-          SIGNATURE_HEADER_NAMES.includes(h.toLowerCase()),
-        );
-        if (this.signer) {
-          const fresh = await this.signer(webhookId, payloadStr);
-          sendHeaders = {
-            ...Object.fromEntries(
-              Object.entries(headers).filter(
-                ([h]) => !SIGNATURE_HEADER_NAMES.includes(h.toLowerCase()),
-              ),
-            ),
-            ...fresh,
-          };
-        } else if (hasStaleSignature) {
-          // Fail closed: never deliver a signature that no longer matches.
-          throw new Error(
-            "Masking policy changed the payload but no signer is configured to re-sign it",
-          );
-        }
-      }
-    } catch (err: any) {
-      log.error({ webhookId, lane, err: err.message }, "Webhook masking/signing failed");
-      return { webhookId, status: "failed", reason: err.message, lane };
     }
 
     try {
@@ -450,7 +353,7 @@ export class DispatcherWorker {
               const response = await this.transport(
                 url,
                 payloadStr,
-                sendHeaders,
+                dispatchHeaders,
                 pinnedTarget,
               );
               if (response.status >= 500) {
@@ -473,6 +376,7 @@ export class DispatcherWorker {
         durationMs,
         pinnedIp: pinnedTarget.pinnedIp,
         lane,
+        ...(encrypted ? { encrypted: true } : {}),
       };
     } catch (err: any) {
       if (err instanceof CircuitBreakerOpenError) {

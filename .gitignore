@@ -53,5 +53,6 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Local alert spillover journal (lib/queue/disk-spillover.ts)
-.data/
+# Python bytecode (SDK tests)
+__pycache__/
+*.pyc

@@ -35,9 +35,31 @@ func main() {
 }
 ```
 
+## Decrypting end-to-end encrypted payloads (#929)
+
+When a webhook is configured for encrypted delivery the body is an ECIES
+envelope and the ephemeral public key is published in the
+`Stellar-Alerts-Ephemeral-Key` header:
+
+```go
+decryptor, err := webhook.NewEciesDecryptor(os.Getenv("WEBHOOK_PRIVATE_KEY"))
+if err != nil {
+    log.Fatal(err)
+}
+plaintext, err := decryptor.DecryptWebhook(
+    body,
+    r.Header.Get(webhook.EphemeralKeyHeader),
+)
+```
+
+Private keys may be a Stellar `S...` seed, `x25519:<base64|hex>`, or a raw
+32-byte key. The header is checked against the envelope so a proxy cannot
+swap either half of the delivery.
+
 ## Features
 
 - HMAC-SHA256 signature verification
 - Timestamp drift protection (configurable tolerance)
 - Replay attack prevention via nonce checking
 - Grace period for key rotation (48 hours)
+- ECIES (X25519 + HKDF-SHA256 + AES-256-GCM) payload decryption

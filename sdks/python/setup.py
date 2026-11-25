@@ -7,7 +7,8 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
+    install_requires=["cryptography>=42.0"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

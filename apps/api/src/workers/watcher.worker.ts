@@ -22,10 +22,7 @@ import { appendPaymentChecksum } from '../services/checksumChain.service';
 import { createLogger } from '../lib/logger';
 import { outboxService } from '../modules/outbox/outbox.service';
 import { velocityAnomalyDetector } from '../modules/security/velocity-detector';
-import {
-  addressPoisoningDetector,
-  type AddressPoisoningCheckResult,
-} from '../modules/security/address-poisoning.service';
+import { amlRiskScorer } from '../modules/security/aml-risk.service';
 import { WorkerLifecycleManager } from '../lib/worker-lifecycle';
 import { startTelemetry, shutdownTelemetry } from '../lib/telemetry';
 import { startWorkerMetricsServer, stopWorkerMetricsServer } from '../lib/worker-metrics-server';
@@ -82,6 +79,7 @@ import {
 import { asEnrichedSorobanEvents, type EnrichedSorobanEvent } from '../types/soroban-event';
 import { isPingMessage } from '../types/ipc';
 import { extractFilterRules } from '../types/notification-preference';
+import type { AmlRiskAssessment, AmlTransactionEdge } from '@stellar-alerts/shared';
 
 const tracer = trace.getTracer('watcher-worker');
 
@@ -128,6 +126,35 @@ export function syncMonitoredAddresses(wallets: ReadonlyArray<{ publicKey: strin
     })(),
     wallets.length,
   );
+}
+
+/**
+ * Loads the incoming payment edges for an address so the AML scorer can walk
+ * the transaction graph backwards (#928).
+ *
+ * Only payments received by a wallet whose public key is `address` count as
+ * incoming edges; a plain counterparty address with no wallet on this
+ * deployment yields no edges. The query is bounded so a busy wallet cannot
+ * turn one risk evaluation into an unbounded scan.
+ */
+async function loadIncomingAmlEdges(address: string): Promise<AmlTransactionEdge[]> {
+  const wallets = await prisma.wallet.findMany({
+    where: { publicKey: address },
+    select: { id: true },
+  });
+  if (wallets.length === 0) return [];
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      walletId: { in: wallets.map((wallet) => wallet.id) },
+      fromAddress: { not: '' },
+    },
+    select: { fromAddress: true },
+    orderBy: { receivedAt: 'desc' },
+    take: 200,
+  });
+
+  return payments.map((payment) => ({ from: payment.fromAddress, to: address }));
 }
 
 
@@ -472,13 +499,26 @@ export async function processPaymentRecord(
           log.warn({ err: velErr?.message, txHash }, 'Velocity anomaly detection evaluation skipped');
         }
 
-        // Suspected address-poisoning dust transactions are quarantined and have
-        // already emitted a high-priority security alert; suppress the standard
-        // payment notification so attackers cannot abuse normal feeds.
-        if (poisoningResult?.isPoisoning) {
-          span.setAttribute('payment.quarantined', true);
-          span.setAttribute('payment.enqueued', true);
-        } else {
+        // AML risk scoring (#928): evaluate the counterparty against the local
+        // flagged-address list over a two-hop graph. Skipped entirely when no
+        // addresses are configured, so the default path stays I/O-free.
+        let amlRisk: AmlRiskAssessment | null = null;
+        let amlCritical = false;
+        if (fromAddress && amlRiskScorer.hasFlaggedAddresses()) {
+          try {
+            amlRisk = await amlRiskScorer.evaluateWithEdgeLoader(
+              fromAddress,
+              loadIncomingAmlEdges,
+            );
+            amlCritical = amlRiskScorer.shouldTriggerCritical(amlRisk);
+          } catch (amlErr: any) {
+            log.warn(
+              { err: amlErr?.message, txHash, fromAddress },
+              'AML risk evaluation skipped',
+            );
+          }
+        }
+
         const alertJobPayload = {
           paymentId: payment.id,
           txHash,
@@ -488,7 +528,25 @@ export async function processPaymentRecord(
           assetIssuer,
           fromAddress,
           receivedAt: receivedAt.toISOString(),
+          ...(amlRisk ? { amlRisk } : {}),
+          // Critical AML findings jump the normal priority lane.
+          ...(amlCritical ? { severity: 'critical' } : {}),
         };
+
+        if (amlCritical && amlRisk) {
+          log.warn(
+            {
+              txHash,
+              fromAddress,
+              score: amlRisk.score,
+              hops: amlRisk.hops,
+              match: amlRisk.matches[0]?.category,
+            },
+            '🚨 AML critical risk on incoming payment source',
+          );
+          span.setAttribute('payment.amlRiskScore', amlRisk.score);
+          span.setAttribute('payment.amlRiskLevel', amlRisk.level);
+        }
 
         // Persisted AlertRule records take priority when a user has any
         // configured (see lib/alert-rule-evaluator.ts): only a matching
@@ -574,6 +632,14 @@ export async function processPaymentRecord(
             await enqueuePaymentAlert(alertJobPayload);
             dispatched = true;
           }
+        }
+
+        // A critical AML finding is a compliance escalation, not a user
+        // preference: deliver it even when alert rules / filter rules would
+        // otherwise suppress the payment.
+        if (amlCritical && !dispatched) {
+          await enqueuePaymentAlert(alertJobPayload);
+          dispatched = true;
         }
 
         span.setAttribute('payment.enqueued', dispatched);
