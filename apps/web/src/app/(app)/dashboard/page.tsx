@@ -175,7 +175,12 @@ export default function DashboardPage() {
                   <WatcherForm onWalletAdded={refreshAfterMutation} isStreamConnected={isStreamConnected} />
                 </div>
                 <div className="min-w-0 lg:col-span-8">
-                  <PaymentTable payments={visiblePayments} isLoading={isLoadingPayments} />
+                  <PaymentTable
+                    payments={visiblePayments}
+                    isLoading={isLoadingPayments}
+                    hasExternalFilters={selectedTags.length > 0}
+                    onClearFilters={clearTags}
+                  />
                 </div>
               </div>
             ),

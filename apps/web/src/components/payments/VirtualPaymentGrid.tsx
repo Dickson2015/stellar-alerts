@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { PaymentDTO } from '@stellar-alerts/shared';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export interface VirtualPaymentGridProps {
   payments: PaymentDTO[];
@@ -134,7 +135,12 @@ export const VirtualPaymentGrid: React.FC<VirtualPaymentGridProps> = ({
         style={{ height }}
       >
         {sortedPayments.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-sm">No payments to display.</div>
+          <EmptyState
+            variant="no-data"
+            title="No payments to display."
+            className="m-4"
+            testId="virtual-payment-grid-empty"
+          />
         ) : (
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
             {virtualItems.map((virtualRow) => {

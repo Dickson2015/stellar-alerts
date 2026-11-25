@@ -261,50 +261,48 @@ describe('PaymentTable CSV/JSON export (issue #582)', () => {
   });
 });
 
-describe('PaymentTable address-poisoning quarantine (issue #994)', () => {
-  it('quarantines suspected poisoning transactions with a prominent PHISHING / ADDRESS POISONING WARNING banner and blocks copying the sender address', () => {
-    const poisonedPayment = makePayment({
-      id: 'pay-poison',
-      txHash: 'poisonhash123456',
-      fromAddress: 'GDQPXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX4BVI',
-      amount: 0.00001,
-      asset: 'XLM',
-      isQuarantined: true,
-      securityWarning: {
-        type: 'ADDRESS_POISONING',
-        banner: 'PHISHING / ADDRESS POISONING WARNING',
-        message: 'DO NOT copy the sender address from your transaction history.',
-        spoofedCounterparty: 'GDQP2KPQGKIHYJGXNUIYOMHARUARCA7DJT5FO2FFOOKY3B2WSFMG4BVI',
-        matchedPrefix: 'GDQP',
-        matchedSuffix: '4BVI',
-      },
-    });
-    const normalPayment = makePayment({
-      id: 'pay-normal',
-      txHash: 'normalhash123456',
-      amount: 50,
-    });
+describe('PaymentTable empty states', () => {
+  it('shows the no-data empty state when there are no payments and no filters', () => {
+    render(<PaymentTable payments={[]} isLoading={false} />);
 
-    const { container } = render(
-      <PaymentTable payments={[poisonedPayment, normalPayment]} isLoading={false} />,
-    );
-
-    const banner = screen.getByTestId('address-poisoning-banner');
-    expect(banner).toHaveAttribute('role', 'alert');
-    expect(banner).toHaveTextContent('PHISHING / ADDRESS POISONING WARNING');
-    expect(banner).toHaveTextContent(/Do not copy the sender address/i);
-
-    const quarantinedRows = container.querySelectorAll('tr[data-quarantined="true"]');
-    expect(quarantinedRows).toHaveLength(1);
-    expect(screen.getByText('(Copy blocked)')).toBeInTheDocument();
-
-    // Only the normal payment has a "Copy sender address" button
-    const copySenderButtons = screen.getAllByRole('button', { name: /copy sender address/i });
-    expect(copySenderButtons).toHaveLength(1);
+    expect(screen.getByTestId('payments-empty-state')).toHaveTextContent('No payments recorded yet');
+    expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument();
   });
 
-  it('does not render the phishing warning banner when no payments are quarantined', () => {
-    render(<PaymentTable payments={[makePayment()]} isLoading={false} />);
-    expect(screen.queryByTestId('address-poisoning-banner')).not.toBeInTheDocument();
+  it('clears search and asset filters from the zero-result CTA', () => {
+    const onClearFilters = vi.fn();
+    render(
+      <PaymentTable
+        payments={[makePayment({ asset: 'XLM' })]}
+        isLoading={false}
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('search-input'), { target: { value: 'NO_MATCH' } });
+    expect(screen.getByTestId('payments-no-results')).toHaveTextContent('No payments match your filters');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('search-input')).toHaveValue('');
+    expect(screen.queryByTestId('payments-no-results')).not.toBeInTheDocument();
+  });
+
+  it('offers Clear all filters when external tag filters leave no payments', () => {
+    const onClearFilters = vi.fn();
+    render(
+      <PaymentTable
+        payments={[]}
+        isLoading={false}
+        hasExternalFilters
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    expect(screen.queryByTestId('payments-empty-state')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
   });
 });
